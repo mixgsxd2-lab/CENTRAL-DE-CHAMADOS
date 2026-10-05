@@ -1,0 +1,35 @@
+{% extends "enfermagem/base.html" %}
+{% block titulo %}Acompanhar solicitação — Hospital Rio Grande{% endblock %}
+{% block body_classe %}pagina-paciente{% endblock %}
+
+{% block conteudo %}
+<!-- Acompanhamento de um pedido de Hotelaria feito pela área do paciente da
+     Enfermagem (categoria "Outros"). Mesmo padrão visual de
+     enfermagem/acompanhar.html. -->
+<div class="app-paciente">
+  <header class="cabecalho-paciente cabecalho-acompanhar">
+    <div class="linha-topo-paciente">
+      <div style="width:44px;"></div>
+      <span class="marca-paciente">RG · Chamador de Hotelaria</span>
+      <div style="width:34px;"></div>
+    </div>
+    <h1>Acompanhar chamado</h1>
+    <p id="subtituloAcompanhar">Carregando...</p>
+    <div class="trilha-passos">
+      <span class="ativo"></span><span class="ativo"></span><span class="ativo"></span><span class="ativo"></span>
+    </div>
+  </header>
+
+  <main class="tela-paciente" id="telaAcompanhar">
+    <p class="texto-carregando">Carregando chamado...</p>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/enfermagem/acesso_paciente.js') }}"></script>
+<script>
+  window.CHAMADO_ID = {{ chamado_id }};
+</script>
+<script src="{{ url_for('static', filename='js/hotelaria/acompanhar.js') }}"></script>
+{% endblock %}

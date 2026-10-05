@@ -1,0 +1,15 @@
+{% extends "enfermagem/base.html" %}
+{% block titulo %}{% if expirado %}Acesso expirado{% else %}Escaneie o QR Code{% endif %} — Hospital Rio Grande{% endblock %}
+{% block body_classe %}pagina-paciente{% endblock %}
+
+{% block conteudo %}
+{# Mesmo conteúdo que static/js/enfermagem/acesso_paciente.js desenha quando
+   o acesso expira com a tela já aberta — manter os dois iguais. #}
+<div class="tela-erro">
+  <div class="tela-erro-caixa">
+    <span class="tela-erro-codigo" aria-hidden="true">⏱</span>
+    <h1 class="tela-erro-titulo">{% if expirado %}Acesso expirado{% else %}Acesso pelo QR Code{% endif %}</h1>
+    <p>Escaneie o QR Code do seu leito para abrir um chamado.</p>
+  </div>
+</div>
+{% endblock %}

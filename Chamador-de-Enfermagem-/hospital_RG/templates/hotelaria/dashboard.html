@@ -1,0 +1,116 @@
+{% extends "hotelaria/base.html" %}
+{% block titulo %}Dashboard — Chamador de Hotelaria{% endblock %}
+{% block estilos_extra %}
+<script>
+  window.SERVICOS = {{ servicos|tojson }};
+</script>
+{% endblock %}
+{% block conteudo %}
+<div class="topo">
+  <div class="marca">
+    <img src="{{ url_for('static', filename='img/hotelaria-logo-icon.png') }}" alt="Hospital Rio Grande" class="selo">
+    <div>
+      Dashboard de Hotelaria
+      <span class="subtitulo">Hospital Rio Grande</span>
+    </div>
+  </div>
+  <nav>
+    <a href="{{ url_for('hotelaria_pages.dashboard') }}" class="ativo">Dashboard</a>
+    <a href="{{ url_for('hotelaria_pages.central') }}">Central</a>
+    <a href="{{ url_for('hotelaria_pages.historico') }}">Histórico</a>
+    <a href="{{ url_for('hotelaria_pages.logout') }}" class="botao-sair">Sair</a>
+  </nav>
+</div>
+
+<div class="pagina">
+  <div class="barra-filtros barra-filtros-central barra-filtros-dashboard">
+    <div class="seletor-periodo" role="group" aria-label="Período" id="seletorPeriodo">
+      <button type="button" data-periodo="hoje">Hoje</button>
+      <button type="button" data-periodo="7dias">Últimos 7 dias</button>
+      <button type="button" data-periodo="30dias">Últimos 30 dias</button>
+      <button type="button" data-periodo="" class="ativo">Tudo</button>
+    </div>
+    <button class="botao-filtros-avancados" id="botaoFiltrosAvancados" type="button" aria-expanded="false" aria-controls="painelFiltrosAvancados">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+      Mais filtros
+    </button>
+  </div>
+
+  <div class="painel-filtros-avancados" id="painelFiltrosAvancados" hidden>
+    <div class="campos-filtro-linha">
+      <div class="campo-filtro campo-filtro-busca">
+        <label for="filtroBusca">Buscar</label>
+        <input type="text" id="filtroBusca" placeholder="Leito ou descrição...">
+      </div>
+      <div class="campo-filtro">
+        <label for="filtroServico">Serviço</label>
+        <select id="filtroServico">
+          <option value="">Todos</option>
+          {% for chave, s in servicos.items() %}{% if chave != "outros" %}<option value="{{ chave }}">{{ s.nome }}</option>{% endif %}{% endfor %}
+        </select>
+      </div>
+      <div class="campo-filtro">
+        <label for="filtroStatus">Status</label>
+        <select id="filtroStatus">
+          <option value="">Todos</option>
+          <option value="pendente">Pendentes</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="finalizado">Finalizados</option>
+        </select>
+      </div>
+      <div class="campo-filtro">
+        <label for="filtroAndar">Andar</label>
+        <select id="filtroAndar">
+          <option value="">Todos</option>
+          {% for andar in andares %}<option value="{{ andar }}">{{ andar }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="campo-filtro">
+        <label for="filtroDataInicio">De</label>
+        <input type="date" id="filtroDataInicio">
+      </div>
+      <div class="campo-filtro">
+        <label for="filtroDataFim">Até</label>
+        <input type="date" id="filtroDataFim">
+      </div>
+    </div>
+    <button class="botao botao-fantasma pequeno" id="botaoLimparFiltrosDash" type="button">Limpar filtros</button>
+  </div>
+
+  <div class="filtros-ativos" id="filtrosAtivos"></div>
+
+  <div class="grade-cartoes-dash" id="cartoesResumo"></div>
+
+  <div class="grade-graficos">
+    <div class="painel-grafico">
+      <h3>Chamados por serviço</h3>
+      <div id="graficoServico"></div>
+    </div>
+    <div class="painel-grafico">
+      <h3>Chamados por status</h3>
+      <div id="graficoStatus"></div>
+    </div>
+  </div>
+
+  <div class="grade-graficos" style="margin-top:16px;">
+    <div class="painel-grafico">
+      <div class="topo-painel-grafico">
+        <h3>Chamados por período</h3>
+        <span class="subtitulo-grafico" id="subtituloPeriodo"></span>
+      </div>
+      <div id="graficoPeriodo"></div>
+    </div>
+    <div class="painel-grafico">
+      <div class="topo-painel-grafico">
+        <h3>Chamados por andar</h3>
+        <span class="legenda-mini" id="legendaAndar"></span>
+      </div>
+      <div id="graficoAndar"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard_comum.js') }}"></script>
+<script src="{{ url_for('static', filename='js/hotelaria/dashboard.js') }}"></script>
+{% endblock %}

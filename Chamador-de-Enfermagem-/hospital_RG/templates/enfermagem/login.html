@@ -1,0 +1,32 @@
+{% extends "enfermagem/base.html" %}
+{% block titulo %}Login — Central de Enfermagem{% endblock %}
+{% block conteudo %}
+<div class="tela-login">
+  <div class="cartao-login surgir">
+    <img src="{{ url_for('static', filename='img/hotelaria-logo-icon.png') }}" alt="Hospital Rio Grande" class="selo-login">
+    <h2>Acesso restrito</h2>
+    <p class="legenda">Chamador de Enfermagem — Central &amp; Dashboard</p>
+
+    {% with mensagens = get_flashed_messages() %}
+      {% if mensagens %}
+        <div class="erro-login">{{ mensagens[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('enfermagem_pages.login') }}">
+      <div class="campo-form">
+        <label for="usuario">Usuário</label>
+        <input type="text" id="usuario" name="usuario" autocomplete="username" required>
+      </div>
+      <div class="campo-form">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" name="senha" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="botao botao-primario botao-bloco">Entrar</button>
+    </form>
+
+    <div class="dica-login">Login de teste: <b>enfermagem</b> / <b>12345</b></div>
+    <a class="link-voltar-login" href="{{ url_for('portal.inicio') }}">← Voltar ao portal</a>
+  </div>
+</div>
+{% endblock %}

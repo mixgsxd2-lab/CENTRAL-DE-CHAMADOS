@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ codigo }} — Hospital Rio Grande</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enfermagem.css') }}">
+</head>
+<body>
+<div class="tela-erro">
+  <div class="tela-erro-caixa">
+    <span class="tela-erro-codigo">{{ codigo }}</span>
+    <p>{{ mensagem }}</p>
+    <a href="{{ url_for('portal.inicio') }}" class="botao botao-primario">Voltar ao início</a>
+  </div>
+</div>
+</body>
+</html>

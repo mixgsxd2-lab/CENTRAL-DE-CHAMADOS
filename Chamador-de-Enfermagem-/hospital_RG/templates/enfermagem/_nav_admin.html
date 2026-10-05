@@ -1,0 +1,7 @@
+<nav class="nav-admin">
+  <a href="{{ url_for('enfermagem_pages.dashboard') }}"{% if pagina_ativa == 'dashboard' %} class="ativo"{% endif %}>Dashboard</a>
+  <a href="{{ url_for('enfermagem_pages.central') }}"{% if pagina_ativa == 'central' %} class="ativo"{% endif %}>Central</a>
+  <a href="{{ url_for('enfermagem_pages.historico') }}"{% if pagina_ativa == 'historico' %} class="ativo"{% endif %}>Histórico</a>
+  <a href="{{ url_for('enfermagem_pages.configuracoes') }}"{% if pagina_ativa == 'configuracoes' %} class="ativo"{% endif %}>Configurações</a>
+  <a href="{{ url_for('enfermagem_pages.logout') }}" class="botao-sair">Sair</a>
+</nav>

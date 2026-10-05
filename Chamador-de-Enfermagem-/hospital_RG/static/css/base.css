@@ -1,0 +1,839 @@
+/* ==========================================================================
+   Hospital Rio Grande — design system compartilhado por Enfermagem e
+   Hotelaria (`@import`ado por static/css/enfermagem.css e
+   static/css/hotelaria.css). Antes, os dois arquivos mantinham cópias quase
+   idênticas de botões, cabeçalho admin, cartões de dashboard, filtros e
+   modal — qualquer ajuste de identidade visual precisava ser feito duas
+   vezes, e as duas cópias já tinham começado a divergir em detalhes. Este
+   arquivo é a fonte única dessas peças; cada CSS de módulo mantém só o que
+   é realmente específico dele (fluxo do paciente, chat, kanban).
+   ========================================================================== */
+
+:root {
+  /* ---- Cor de marca (idêntica à paleta já validada do projeto) ---- */
+  --primaria: #5c8fc4;
+  --primaria-escura: #4a76a3;
+  --primaria-clara: #eaf2fb;
+  --primaria-suave: #d6e7f7;
+
+  --fundo: #f6f8fb;
+  --branco: #ffffff;
+  --texto: #1f2937;
+  --texto-suave: #6b7280;
+  --borda: #e5e9f0;
+
+  --sombra: 0 4px 14px rgba(31, 58, 94, 0.08);
+  --sombra-media: 0 10px 26px rgba(31, 58, 94, 0.14);
+  --sombra-forte: 0 10px 26px rgba(31, 58, 94, 0.14);
+  --raio: 18px;
+  --raio-pequeno: 12px;
+
+  /* Faixas de prioridade/status (Enfermagem) — só com cores que já existem
+     na família da paleta da Hotelaria, para os dois módulos permanecerem
+     visualmente unificados. "Média" propositalmente cinza-neutro (não
+     azul), para não se confundir com a cor de marca/ação usada em botões e
+     no status "em atendimento". Tons escurecidos em relação à primeira
+     versão do design (que usava os tons médios direto da Hotelaria) para
+     atingir contraste AA (≥4.5:1) como texto sobre o fundo pastel do
+     próprio selo — a versão anterior ficava por volta de 3:1.
+     */
+  --critica: #b3261e;
+  --critica-fundo: #fdeceb;
+  --alta: #96660c;
+  --alta-fundo: #fdf1dc;
+  --media: #52606d;
+  --media-fundo: #eef1f6;
+  --baixa: #1f7a53;
+  --baixa-fundo: #e3f7ee;
+  --hotelaria: #7c3aed;
+  --hotelaria-fundo: #f1e9fe;
+
+  /* Paleta dos gráficos dos Dashboards (Enfermagem e Hotelaria): escala
+     de azuis derivada da cor de marca, do mais escuro (maior destaque) ao
+     mais claro — combina com o branco e o azul predominantes do hospital.
+     Lida pelo JS em static/js/dashboard_comum.js, então mudar aqui muda os
+     dois dashboards. */
+  --grafico-1: #1b3a5c;   /* azul-marinho: maior destaque (Crítico / Pendente) */
+  --grafico-2: #2f5f8f;
+  --grafico-3: #5c8fc4;   /* azul da marca (Médio / Em andamento) */
+  --grafico-4: #8db5de;
+  --grafico-5: #c2d8ee;   /* azul-claro: menor destaque (Baixo / Finalizado) */
+  --grafico-trilha: #eef3f9;
+
+  --sucesso: #1f7a53;
+  --atencao: #96660c;
+  --perigo: #b3261e;
+  --info: #3f7dc9;
+
+  /* ---- Espaçamento (escala 4px) — usado nas peças novas/refeitas ---- */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 20px;
+  --esp-6: 24px;
+  --esp-7: 32px;
+
+  --fonte: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Alvo de toque mínimo recomendado (mobile/acessibilidade). */
+  --alvo-toque-min: 44px;
+}
+
+/* ==========================================================================
+   Reset e base
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  overflow-x: hidden;
+  font-family: var(--fonte);
+  background: var(--fundo);
+  color: var(--texto);
+  -webkit-font-smoothing: antialiased;
+}
+a { text-decoration: none; color: inherit; }
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; }
+h1, h2, h3 { margin: 0; }
+p { margin: 0; }
+img, svg { max-width: 100%; }
+
+/* Vários componentes abaixo (banner-status, painel-filtros-avancados, etc.) definem
+   `display: flex`/`grid` na própria classe. Sem esta regra, esse `display`
+   declarado pelo autor empataria em especificidade com o `[hidden]` da
+   folha de estilos do navegador e, por vir depois na cascata, VENCERIA —
+   fazendo `hidden` (e `el.hidden = true` via JS) parar de esconder o
+   elemento. `!important` aqui garante que `hidden` sempre vence, como o
+   usuário espera. */
+[hidden] { display: none !important; }
+
+@keyframes surgir-anim { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.surgir { animation: surgir-anim .28s ease both; }
+
+.texto-suave { color: var(--texto-suave); }
+.texto-centro { text-align: center; }
+.texto-carregando { text-align: center; padding: 60px 20px; color: var(--texto-suave); }
+
+/* Some visualmente mas continua acessível a leitor de tela. */
+.apenas-leitor {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* Estado de foco visível e consistente em toda a interface — antes só os
+   `<input>` tinham destaque de foco; botões, links e chips não tinham
+   nenhum indicador para navegação por teclado. */
+:focus-visible {
+  outline: 2.5px solid var(--primaria);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Placeholder de carregamento (usado no lugar de "Carregando..." simples em
+   listas/cartões que ainda não vieram do servidor). */
+.esqueleto {
+  position: relative; overflow: hidden; background: var(--borda);
+  border-radius: var(--raio-pequeno);
+}
+.esqueleto::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+  animation: esqueleto-brilho 1.4s ease-in-out infinite;
+}
+@keyframes esqueleto-brilho { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* ==========================================================================
+   Botões
+   ========================================================================== */
+.botao {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--alvo-toque-min);
+  padding: 13px 22px; border-radius: 12px; border: none;
+  font-weight: 700; font-size: 0.95rem;
+  background: var(--primaria); color: #fff;
+  box-shadow: var(--sombra);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, opacity .15s ease;
+}
+.botao:hover { transform: translateY(-2px); box-shadow: var(--sombra-media); }
+.botao:active { transform: translateY(0); }
+.botao:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+.botao-bloco, .botao.largo { width: 100%; }
+.botao-fantasma, .botao.secundario {
+  background: var(--branco); color: var(--primaria); border: 1.5px solid var(--primaria-suave); box-shadow: none;
+}
+.botao-fantasma:hover, .botao.secundario:hover { background: var(--primaria-clara); }
+.botao-sucesso, .botao.sucesso { background: var(--sucesso); }
+.botao-primario { background: var(--primaria); }
+.botao.perigo { background: var(--perigo); }
+.botao.pequeno { min-height: 38px; padding: 8px 14px; font-size: 0.82rem; border-radius: 10px; }
+
+/* Botão só-ícone (voltar, fechar modal) — alvo de toque garantido mesmo
+   quando o ícone em si é pequeno. */
+.botao-icone {
+  width: var(--alvo-toque-min); height: var(--alvo-toque-min);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 12px; background: var(--fundo); color: var(--texto);
+}
+
+/* ==========================================================================
+   Campo de formulário genérico (usado no fluxo do paciente dos dois
+   módulos — seletor de Andar/Leito, textarea de descrição, etc.)
+   ========================================================================== */
+.campo { margin-bottom: 16px; }
+.campo:last-child { margin-bottom: 0; }
+.campo label { display: block; font-size: 0.82rem; font-weight: 700; color: var(--texto-suave); margin-bottom: 6px; }
+.campo select, .campo input[type="text"], .campo textarea {
+  width: 100%; min-height: var(--alvo-toque-min); padding: 13px 14px; border-radius: 12px; border: 1.5px solid var(--borda);
+  font-size: 1rem; background: var(--branco); color: var(--texto);
+}
+.campo select:focus, .campo input:focus, .campo textarea:focus { outline: none; border-color: var(--primaria); }
+.campo textarea { resize: vertical; min-height: 78px; }
+
+/* ==========================================================================
+   Banner de status/aviso (usado no acompanhamento do paciente dos dois
+   módulos — cada um define suas próprias variantes de cor específicas do
+   seu fluxo em cima deste bloco genérico; "sem conexão" é comum aos dois).
+   ========================================================================== */
+.banner-status {
+  display: flex; align-items: flex-start; gap: 12px;
+  border-radius: var(--raio); padding: 16px 18px; margin-bottom: 14px;
+  box-shadow: var(--sombra);
+}
+.banner-status-icone { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
+.banner-status strong { display: block; font-size: 1.02rem; margin-bottom: 2px; }
+.banner-status p { font-size: 0.86rem; color: inherit; opacity: 0.9; line-height: 1.4; margin: 0; }
+.banner-status-sem_conexao { background: #eef1f6; color: var(--texto-suave); }
+
+/* ==========================================================================
+   Toast (substitui alert()) — ver static/js/common.js
+   ========================================================================== */
+.hrg-toast-container {
+  position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 999; display: flex; flex-direction: column; gap: 8px;
+  width: min(92vw, 420px); pointer-events: none;
+}
+.hrg-toast {
+  background: #1f2937; color: #fff; padding: 12px 16px; border-radius: 12px;
+  font-size: 0.88rem; font-weight: 600; box-shadow: var(--sombra-forte);
+  opacity: 0; transform: translateY(10px); transition: opacity .22s ease, transform .22s ease;
+  text-align: center;
+}
+.hrg-toast-visivel { opacity: 1; transform: translateY(0); }
+.hrg-toast-erro { background: var(--critica); }
+.hrg-toast-sucesso { background: var(--sucesso); }
+.hrg-toast-info { background: #1f2937; }
+
+/* ==========================================================================
+   Selos de prioridade e status (compartilhados)
+   ========================================================================== */
+.selo-prioridade {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.02em;
+}
+.selo-critica { background: var(--critica-fundo); color: var(--critica); }
+.selo-alta { background: var(--alta-fundo); color: var(--alta); }
+.selo-media { background: var(--media-fundo); color: var(--media); }
+.selo-baixa { background: var(--baixa-fundo); color: var(--baixa); }
+
+.selo-status {
+  display: inline-flex; align-items: center; font-size: 0.72rem; font-weight: 700;
+  padding: 4px 10px; border-radius: 20px; background: #eef1f6; color: var(--texto-suave);
+}
+.selo-status-pendente { background: #fdf0e4; color: var(--atencao); }
+.selo-status-em_atendimento, .selo-status-em_andamento { background: var(--primaria-clara); color: var(--primaria); }
+.selo-status-finalizado { background: var(--baixa-fundo); color: var(--baixa); }
+
+.borda-critica { border-left: 5px solid var(--critica); }
+.borda-alta { border-left: 5px solid var(--alta); }
+.borda-media { border-left: 5px solid var(--media); }
+.borda-baixa { border-left: 5px solid var(--baixa); }
+/* Usada pela Central de Hotelaria (não tem faixas de prioridade como a
+   Enfermagem — só status): mesmo acento visual de borda, cor de "em
+   andamento" (ver .selo-status-em_andamento acima). */
+.borda-andamento { border-left: 5px solid var(--primaria); }
+
+/* Indicador de "acima do tempo esperado" (SLA da faixa de prioridade). */
+.selo-atrasado {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.7rem; font-weight: 800; padding: 3px 9px; border-radius: 20px;
+  background: var(--critica-fundo); color: var(--critica);
+}
+
+/* Selo de tempo de espera com meta do SLA embutida (ex.: "12 min / meta 15
+   min"), em 3 cores conforme o quanto já foi consumido da meta da faixa:
+   ok (neutro) → alerta (perto do limite, >=70%) → atrasado (estourou). */
+.selo-tempo {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+  background: #eef1f6; color: var(--texto-suave);
+}
+.selo-tempo .meta-tempo { opacity: 0.75; font-weight: 600; }
+.selo-tempo-alerta { background: var(--alta-fundo); color: var(--alta); }
+.selo-tempo-atrasado { background: var(--critica-fundo); color: var(--critica); }
+
+/* Badge de tendência (comparativo com o período anterior). */
+.tendencia {
+  font-size: 0.74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px; border-radius: 20px; background: var(--primaria-clara); color: var(--grafico-2);
+}
+.tendencia-alta { background: var(--primaria-suave); color: var(--grafico-1); }
+.tendencia-baixa { background: var(--primaria-clara); color: var(--grafico-2); }
+.tendencia-neutra { background: var(--grafico-trilha); color: var(--texto-suave); }
+
+/* ==========================================================================
+   Login (compartilhado)
+   ========================================================================== */
+.tela-login {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 30%, var(--primaria-clara), var(--fundo));
+  padding: 20px;
+}
+.cartao-login {
+  background: var(--branco);
+  padding: 40px 34px;
+  border-radius: 22px;
+  box-shadow: var(--sombra-forte);
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.cartao-login .marca-login {
+  display: block; font-weight: 800; font-size: 1.05rem; color: var(--primaria); margin-bottom: 16px;
+}
+.cartao-login .selo-login {
+  width: 60px; height: 60px; object-fit: contain; display: block; margin: 0 auto 16px;
+}
+.cartao-login h2 { margin: 0 0 4px; }
+.cartao-login p.legenda { color: var(--texto-suave); font-size: 0.88rem; margin: 0 0 26px; }
+.campo-form { text-align: left; margin-bottom: 14px; }
+.campo-form label { font-size: 0.82rem; font-weight: 700; color: var(--texto-suave); display: block; margin-bottom: 6px; }
+.campo-form input {
+  width: 100%; min-height: var(--alvo-toque-min); padding: 12px 14px;
+  border-radius: 10px; border: 1.5px solid var(--borda); font-size: 0.95rem;
+}
+.campo-form input:focus { outline: none; border-color: var(--primaria); }
+.dica-login { margin-top: 18px; font-size: 0.76rem; color: var(--texto-suave); background: var(--fundo); padding: 10px; border-radius: 10px; }
+.erro-login { background: var(--critica-fundo); color: var(--critica); padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 14px; font-weight: 600; }
+.link-voltar-login { display: inline-block; margin-top: 16px; font-size: 0.82rem; color: var(--texto-suave); font-weight: 600; }
+
+/* ==========================================================================
+   Portal inicial (compartilhado)
+   ========================================================================== */
+.fundo-portal { background: radial-gradient(circle at 20% 20%, var(--primaria-clara), var(--fundo) 55%); min-height: 100vh; }
+.portal { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+.portal-caixa { max-width: 920px; width: 100%; text-align: center; }
+.portal-logo { height: 52px; width: auto; margin: 0 auto 18px; display: block; }
+.portal-titulo { font-size: 1.3rem; font-weight: 800; letter-spacing: 4px; text-transform: uppercase; color: var(--primaria); margin: 0 0 10px; }
+.portal-legenda { color: var(--texto-suave); font-size: 1.05rem; margin: 0 0 36px; }
+.portal-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; width: 100%; max-width: 620px; margin: 0 auto; text-align: left; }
+.portal-cartao {
+  background: var(--branco); border-radius: var(--raio); padding: 28px;
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: var(--sombra); border: 1px solid var(--borda);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.portal-cartao:hover, .portal-cartao:focus-visible { transform: translateY(-4px); box-shadow: var(--sombra-forte); }
+.portal-cartao-icone {
+  width: 64px; height: 64px; border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primaria-clara); color: var(--primaria);
+}
+.portal-cartao-icone svg { width: 34px; height: 34px; }
+.portal-cartao-hotelaria .portal-cartao-icone { background: var(--hotelaria-fundo); color: var(--hotelaria); }
+.portal-cartao h2 { font-size: 1.15rem; }
+.portal-cartao p { margin: 0; color: var(--texto-suave); font-size: 0.9rem; line-height: 1.5; }
+.portal-cartao-ir { margin-top: auto; padding-top: 4px; font-weight: 700; font-size: 0.88rem; color: var(--primaria); }
+.portal-cartao-hotelaria .portal-cartao-ir { color: var(--hotelaria); }
+.portal-rodape { margin-top: 44px; color: var(--texto-suave); font-size: 0.8rem; }
+
+/* ==========================================================================
+   Tela de erro (compartilhado)
+   ========================================================================== */
+.tela-erro { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.tela-erro-caixa { text-align: center; background: var(--branco); padding: 44px 36px; border-radius: var(--raio); box-shadow: var(--sombra-media); max-width: 420px; }
+.tela-erro-codigo { font-size: 3rem; font-weight: 900; color: var(--primaria); display: block; margin-bottom: 8px; }
+.tela-erro-caixa p { color: var(--texto-suave); margin-bottom: 22px; }
+.tela-erro-titulo { font-size: 1.2rem; margin: 0 0 10px; }
+
+/* ==========================================================================
+   Acompanhamento do chamado pelo paciente (Hotelaria E Enfermagem — mesmo
+   padrão visual nas duas telas): selo de status, trilha de etapas, resumo
+   e avaliação por estrelas.
+   ========================================================================== */
+/* Status do chamado */
+.cartao-status { background: var(--branco); border-radius: var(--raio); padding: 24px 20px; box-shadow: var(--sombra); margin-top: 10px; text-align: center; }
+.trilha-status { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 22px 0 6px; }
+.passo-status { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
+.passo-status .bola {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--borda); color: var(--texto-suave);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; border: 3px solid var(--fundo);
+}
+.passo-status.ativo .bola { background: var(--primaria); color: #fff; }
+.passo-status.concluido .bola { background: var(--sucesso); color: #fff; }
+.passo-status span.rotulo-passo { font-size: 0.72rem; font-weight: 700; color: var(--texto-suave); text-align: center; }
+.passo-status.ativo span.rotulo-passo, .passo-status.concluido span.rotulo-passo { color: var(--texto); }
+.linha-status { flex: 0.5; height: 3px; background: var(--borda); margin-top: -22px; }
+.linha-status.preenchida { background: var(--sucesso); }
+
+.selo-status-grande { display: inline-block; padding: 8px 18px; border-radius: 30px; font-weight: 800; font-size: 0.85rem; margin-bottom: 6px; }
+.selo-status-grande.pendente { background: var(--alta-fundo); color: var(--alta); }
+.selo-status-grande.em_andamento { background: var(--primaria-clara); color: var(--primaria); }
+.selo-status-grande.finalizado { background: var(--baixa-fundo); color: var(--baixa); }
+
+.resumo-chamado { text-align: left; background: var(--fundo); border-radius: 14px; padding: 14px 16px; margin-top: 16px; font-size: 0.88rem; color: var(--texto-suave); }
+.resumo-chamado b { color: var(--texto); }
+
+/* Avaliação com estrelas */
+.caixa-avaliacao { margin-top: 16px; background: var(--branco); border-radius: var(--raio); box-shadow: var(--sombra); padding: 20px; text-align: center; }
+.estrelas { display: flex; justify-content: center; gap: 8px; margin: 14px 0; }
+.estrelas button { background: none; border: none; font-size: 2rem; color: var(--borda); transition: transform .1s ease, color .1s ease; line-height: 1; min-width: var(--alvo-toque-min); min-height: var(--alvo-toque-min); }
+.estrelas button.ativa { color: #f2b90c; }
+.estrelas button:hover { transform: scale(1.15); }
+.caixa-avaliacao textarea { width: 100%; margin-top: 10px; border-radius: 12px; border: 1.5px solid var(--borda); padding: 12px; min-height: 70px; font-size: 0.88rem; }
+
+.mensagem-agradecimento { text-align: center; padding: 40px 20px; }
+.mensagem-agradecimento .icone-check {
+  width: 70px; height: 70px; border-radius: 50%; background: var(--baixa-fundo); color: var(--baixa);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+}
+
+
+/* ==========================================================================
+   Cabeçalho administrativo (Dashboard/Central/Histórico dos dois módulos)
+   ========================================================================== */
+.app-admin { min-height: 100vh; }
+.topo-admin, .topo {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px; background: var(--branco); border-bottom: 1px solid var(--borda);
+  position: sticky; top: 0; z-index: 50; flex-wrap: wrap; gap: 12px;
+}
+.marca-admin, .marca { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 1.15rem; color: var(--primaria); }
+.marca-admin .selo-admin, .marca .selo { width: 38px; height: 38px; object-fit: contain; display: block; }
+.titulos-admin h1 { font-size: 1.15rem; font-weight: 800; color: var(--primaria); }
+.titulos-admin span, .marca .subtitulo {
+  display: block; font-size: 0.68rem; font-weight: 600; letter-spacing: 2px;
+  color: var(--texto-suave); text-transform: uppercase;
+}
+.nav-admin, .topo nav { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.nav-admin a, .topo nav a, .botao-sair {
+  min-height: var(--alvo-toque-min); display: inline-flex; align-items: center;
+  padding: 9px 16px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; color: var(--texto-suave);
+  border: none; background: transparent;
+}
+.nav-admin a:hover, .topo nav a:hover, .botao-sair:hover,
+.nav-admin a.ativo, .topo nav a.ativo { background: var(--primaria-clara); color: var(--primaria); }
+
+.pagina-admin, .pagina { max-width: 1200px; margin: 0 auto; padding: 24px 24px 60px; }
+.cabecalho-pagina { margin-bottom: 22px; }
+.cabecalho-pagina h1 { margin: 0 0 4px; font-size: 1.5rem; }
+.cabecalho-pagina p { margin: 0; color: var(--texto-suave); font-size: 0.9rem; }
+
+/* ==========================================================================
+   Cartões de estatística (topo da Central)
+   ========================================================================== */
+.grade-stats-central { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-central { background: var(--branco); border-radius: 16px; padding: 18px 20px; box-shadow: var(--sombra); }
+.stat-central .valor { display: block; font-size: 1.8rem; font-weight: 800; }
+.stat-central .rotulo { color: var(--texto-suave); font-size: 0.82rem; }
+.stat-central.acento-atencao .valor { color: var(--atencao); }
+.stat-central.acento-critica .valor { color: var(--critica); }
+.stat-central.acento-sucesso .valor { color: var(--sucesso); }
+
+/* Todos os cartões no mesmo formato (valor grande + rótulo), inclusive os
+   que mostram um nome em vez de número (ex.: setor mais requisitado) —
+   nomes longos são cortados com reticências em vez de quebrar o cartão. */
+.stat-central .valor { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ==========================================================================
+   Dashboard: cartões e gráficos de barra (compartilhado)
+   ========================================================================== */
+.grade-cartoes-dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.cartao-dash {
+  background: var(--branco); border-radius: 18px; padding: 20px; box-shadow: var(--sombra);
+  border: 1px solid #e8eff7;
+}
+.cartao-dash .rotulo-dash { font-size: 0.78rem; color: var(--texto-suave); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.cartao-dash .valor-dash { font-size: 2rem; font-weight: 800; margin-top: 6px; color: var(--grafico-1); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cartao-dash.destaque { background: linear-gradient(160deg, #ffffff 55%, var(--primaria-clara)); }
+.cartao-dash.destaque .valor-dash { color: var(--grafico-2); }
+.cartao-dash.acento-critica .valor-dash { color: var(--critica); }
+
+.grade-graficos { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+.painel-grafico { background: var(--branco); border-radius: 18px; padding: 20px; box-shadow: var(--sombra); border: 1px solid #e8eff7; }
+.painel-grafico h3 { margin: 0 0 16px; font-size: 1rem; }
+.barra-grafico-linha { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.barra-grafico-linha .rotulo-barra { width: 130px; font-size: 0.82rem; font-weight: 600; color: var(--texto-suave); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barra-grafico-linha .trilha-barra { flex: 1; background: var(--grafico-trilha); border-radius: 8px; height: 14px; overflow: hidden; }
+.barra-grafico-linha .preenchimento-barra { height: 100%; background: linear-gradient(90deg, var(--grafico-4), var(--grafico-2)); border-radius: 8px; }
+.barra-grafico-linha .valor-barra { width: 32px; text-align: right; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
+
+.grafico-periodo { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding-top: 10px; }
+.coluna-periodo { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; height: 100%; min-width: 0; }
+.coluna-periodo .barra-vertical { width: 100%; background: linear-gradient(180deg, var(--grafico-3), var(--grafico-2)); border-radius: 6px 6px 2px 2px; min-height: 4px; }
+.coluna-periodo:hover .barra-vertical { background: linear-gradient(180deg, var(--grafico-2), var(--grafico-1)); }
+.coluna-periodo .legenda-periodo { font-size: 0.62rem; color: var(--texto-suave); white-space: nowrap; }
+
+/* Seletor de período do Dashboard (Hoje | 7 dias | 30 dias | Tudo). */
+.seletor-periodo {
+  display: inline-flex; background: var(--branco); border: 1.5px solid var(--borda); border-radius: 20px; padding: 3px; gap: 2px;
+  flex-wrap: wrap;
+}
+.seletor-periodo button {
+  border: none; background: transparent; min-height: 32px; padding: 6px 14px; border-radius: 16px;
+  font-size: 0.82rem; font-weight: 700; color: var(--texto-suave); white-space: nowrap;
+}
+.seletor-periodo button:hover { color: var(--texto); }
+.seletor-periodo button.ativo { background: var(--primaria); color: #fff; }
+
+.topo-painel-grafico { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.topo-painel-grafico h3 { margin: 0; }
+.subtitulo-grafico { font-size: 0.76rem; color: var(--texto-suave); font-weight: 600; }
+.legenda-mini { display: inline-flex; gap: 10px; font-size: 0.72rem; color: var(--texto-suave); font-weight: 600; flex-wrap: wrap; }
+.legenda-mini span { display: inline-flex; align-items: center; gap: 4px; }
+.legenda-mini i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+.coluna-periodo .valor-coluna { font-size: 0.66rem; font-weight: 800; color: var(--grafico-1); line-height: 1; }
+.grafico-periodo.poucas-colunas .coluna-periodo .barra-vertical { max-width: 64px; }
+.grafico-periodo.poucas-colunas .legenda-periodo { font-size: 0.72rem; font-weight: 700; }
+
+.barra-grafico-linha .trilha-barra.empilhada { display: flex; }
+.barra-grafico-linha .trilha-barra.empilhada i { display: block; height: 100%; }
+.andar-total { font-size: 0.72rem; color: var(--texto-suave); font-weight: 600; margin: -6px 0 12px 140px; }
+
+.vazio-dash { text-align: center; color: var(--texto-suave); padding: 40px; font-size: 0.88rem; }
+
+/* ==========================================================================
+   Filtros (compartilhado)
+   ========================================================================== */
+.barra-filtros, .filtros { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.filtros select, .filtros input {
+  min-height: var(--alvo-toque-min); padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--borda);
+  background: var(--branco); font-weight: 600; font-size: 0.86rem; color: var(--texto);
+}
+.chips-filtro { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  min-height: 38px; border: 1.5px solid var(--borda); background: var(--branco); border-radius: 20px;
+  padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: var(--texto-suave);
+}
+.chip.ativo { background: var(--primaria); color: #fff; border-color: var(--primaria); }
+.chip-critica.ativo { background: var(--critica); border-color: var(--critica); }
+.chip-alta.ativo { background: var(--alta); border-color: var(--alta); }
+.chip-media.ativo { background: var(--media); border-color: var(--media); color: #fff; }
+.chip-baixa.ativo { background: var(--baixa); border-color: var(--baixa); }
+.botao-filtros-avancados {
+  margin-left: auto; min-height: 38px; display: flex; align-items: center; gap: 6px; background: var(--branco);
+  border: 1.5px solid var(--borda); border-radius: 20px; padding: 8px 16px; font-size: 0.82rem; font-weight: 700; color: var(--texto);
+}
+.botao-filtros-avancados svg { width: 16px; height: 16px; }
+
+.painel-filtros-avancados {
+  display: flex; flex-wrap: wrap; gap: 14px; background: var(--branco); border: 1px solid var(--borda);
+  border-radius: 14px; padding: 16px; margin-bottom: 16px; align-items: flex-end;
+}
+/* Variante usada só na Central de Enfermagem: agrupa chips (Status,
+   Prioridade) e campos de texto em blocos verticais, para caber tudo dentro
+   do mesmo painel "Mais filtros" sem virar uma linha imensa. */
+.painel-filtros-avancados:has(.grupo-chips-filtro) { flex-direction: column; align-items: stretch; }
+.painel-filtros-avancados .campos-filtro-linha {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
+}
+.grupo-chips-filtro { display: flex; flex-direction: column; gap: 6px; }
+.rotulo-grupo-filtro {
+  font-size: 0.74rem; font-weight: 800; color: var(--texto-suave);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.barra-filtros-central { justify-content: flex-end; margin-bottom: 12px; }
+.barra-filtros-central .botao-filtros-avancados { margin-left: 0; }
+.painel-filtros-sempre-visivel { display: flex; }
+.campo-filtro { display: flex; flex-direction: column; gap: 6px; min-width: 150px; flex: 1 1 150px; }
+.campo-filtro label { font-size: 0.74rem; font-weight: 700; color: var(--texto-suave); text-transform: uppercase; }
+.campo-filtro select, .campo-filtro input {
+  min-height: var(--alvo-toque-min); padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--borda); font-size: 0.9rem;
+}
+.campo-filtro select:focus, .campo-filtro input:focus { outline: none; border-color: var(--primaria); }
+.campo-filtro-busca { flex: 2 1 220px; }
+
+/* Chips de "filtros ativos" — mostra o que está filtrando agora, com um "×"
+   para remover individualmente. */
+.filtros-ativos { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 14px; }
+.filtro-ativo-chip {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--primaria-clara); color: var(--primaria-escura);
+  border-radius: 20px; padding: 5px 8px 5px 12px; font-size: 0.78rem; font-weight: 700; border: none;
+}
+.filtro-ativo-chip button {
+  background: rgba(255,255,255,0.6); border: none; border-radius: 50%; width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center; color: inherit; font-size: 0.72rem; line-height: 1;
+}
+
+/* ==========================================================================
+   Listas de chamados administrativas (Central/Histórico dos dois módulos)
+   ========================================================================== */
+.lista-chamados-admin, .lista-historico { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+.estado-vazio {
+  grid-column: 1 / -1; text-align: center; padding: 46px 20px; color: var(--texto-suave);
+  background: var(--branco); border-radius: 14px; border: 1.5px dashed var(--borda);
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+
+.cartao-chamado-admin {
+  background: var(--branco); border-radius: 14px; padding: 16px 18px; box-shadow: var(--sombra); cursor: pointer;
+  transition: transform .1s ease, box-shadow .15s ease; border: none; text-align: left; width: 100%; font: inherit; color: inherit;
+}
+.cartao-chamado-admin:hover, .cartao-chamado-admin:focus-visible { transform: translateY(-2px); box-shadow: var(--sombra-media); }
+
+/* ---------- Destaque de urgência para chamados críticos ----------
+   Fundo vermelho + oscilação sutil para chamar a atenção da equipe sem
+   dificultar a leitura. Reservado exclusivamente à CENTRAL (chamados que
+   ainda precisam de ação) — por isso o seletor é escopado ao container
+   `#listaChamados` da Central, e NUNCA ao `#listaHistorico`. O Histórico
+   mostra a mesma faixa "Crítico" de forma estática/discreta (só a borda),
+   sem piscar — um chamado já concluído não exige mais atenção imediata da
+   equipe, mesmo que tenha atingido prioridade crítica no passado. Respeita
+   `prefers-reduced-motion` (a animação para, mas o fundo vermelho fica). */
+#listaChamados .cartao-chamado-admin.borda-critica {
+  background: var(--critica-fundo);
+  border-left: 8px solid var(--critica);
+  outline: 2px solid var(--critica);
+  animation: pulso-critico 1.1s ease-in-out infinite;
+  color: #4a0d0a;
+}
+#listaChamados .cartao-chamado-admin.borda-critica .leito-etiqueta-admin,
+#listaChamados .cartao-chamado-admin.borda-critica .categoria-cartao-admin { color: #4a0d0a; }
+#listaChamados .cartao-chamado-admin.borda-critica .selo-prioridade.selo-critica {
+  background: var(--critica); color: #fff;
+}
+@keyframes pulso-critico {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(179, 38, 30, 0.75), var(--sombra); background-color: var(--critica-fundo); }
+  50%      { box-shadow: 0 0 0 10px rgba(179, 38, 30, 0.12), 0 8px 26px rgba(179, 38, 30, 0.5); background-color: #f9c9c5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #listaChamados .cartao-chamado-admin.borda-critica { animation: none; }
+}
+
+/* Histórico: visual estático, limpo e profissional — nunca pisca, mesmo
+   para chamados que atingiram prioridade crítica (já estão finalizados). */
+#listaHistorico .cartao-chamado-admin.borda-critica {
+  background: var(--branco);
+  animation: none;
+  color: inherit;
+}
+#listaHistorico .cartao-chamado-admin.borda-critica .leito-etiqueta-admin,
+#listaHistorico .cartao-chamado-admin.borda-critica .categoria-cartao-admin { color: inherit; }
+
+/* ---------- Cartão de chamado da Hotelaria: mesmo destaque na Central,
+   nunca no Histórico (ver .cartao-chamado.finalizado abaixo). ---------- */
+.cartao-chamado.critico {
+  background: var(--critica-fundo);
+  border-left-color: var(--critica) !important;
+  animation: pulso-critico 1.1s ease-in-out infinite;
+}
+.cartao-chamado.finalizado.critico { animation: none; background: var(--branco); }
+@media (prefers-reduced-motion: reduce) {
+  .cartao-chamado.critico { animation: none; }
+}
+.linha-cartao-admin { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+.leito-etiqueta-admin { font-weight: 800; font-size: 1.02rem; }
+.categoria-cartao-admin { font-size: 0.88rem; color: var(--texto); margin-bottom: 10px; }
+.rodape-cartao-admin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.76rem; color: var(--texto-suave); }
+
+/* ==========================================================================
+   Modal (compartilhado — Enfermagem usa .modal-chamado-admin, Hotelaria usa
+   .modal-chamado; mesmo comportamento visual para os dois)
+   ========================================================================== */
+.fundo-modal {
+  position: fixed; inset: 0; background: rgba(16, 24, 40, 0.5);
+  display: none; align-items: center; justify-content: center; padding: 16px; z-index: 200;
+}
+.fundo-modal.aberto { display: flex; }
+.modal-chamado-admin, .modal-chamado {
+  background: var(--branco); border-radius: var(--raio); padding: 24px; width: 100%; max-width: 500px;
+  max-height: 90vh; overflow-y: auto; box-shadow: var(--sombra-forte);
+}
+.modal-topo-admin, .modal-topo { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; gap: 10px; }
+.modal-topo-admin h2, .modal-topo h2 { font-size: 1.2rem; margin: 0 0 6px; }
+.fechar-modal {
+  width: var(--alvo-toque-min); height: var(--alvo-toque-min); border-radius: 12px; border: none;
+  background: var(--fundo); font-size: 0.9rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+}
+.bloco-info-admin, .bloco-info-modal { display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem; background: var(--fundo); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; line-height: 1.5; }
+.linha-acoes-admin, .linha-acoes-modal { display: flex; flex-direction: column; gap: 10px; }
+.etiqueta-somente-leitura {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 700; color: var(--texto-suave);
+  background: var(--fundo); padding: 5px 10px; border-radius: 20px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px;
+}
+
+/* Paginação simples (Histórico) */
+.paginacao { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; font-size: 0.86rem; color: var(--texto-suave); }
+.paginacao button { min-height: var(--alvo-toque-min); padding: 8px 16px; }
+
+/* ==========================================================================
+   Configurações → Controle de Leitos
+   ========================================================================== */
+.cartao-config { background: var(--branco); border-radius: var(--raio); padding: 22px 24px; box-shadow: var(--sombra); }
+.cabecalho-cartao-config {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--borda);
+}
+.cabecalho-cartao-config h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.cabecalho-cartao-config p { margin: 0; color: var(--texto-suave); font-size: 0.88rem; max-width: 46ch; line-height: 1.4; }
+.resumo-leitos { display: flex; gap: 10px; flex-wrap: wrap; }
+.resumo-leitos-item {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--baixa-fundo); color: var(--baixa);
+  font-weight: 700; font-size: 0.82rem; padding: 8px 14px; border-radius: 20px; white-space: nowrap;
+}
+.resumo-leitos-item b { font-size: 0.95rem; }
+.resumo-leitos-inativos { background: var(--fundo); color: var(--texto-suave); }
+
+.campo-busca-leito { margin-bottom: 18px; }
+.campo-busca-leito input {
+  width: 100%; min-height: var(--alvo-toque-min); padding: 12px 16px; border-radius: 12px;
+  border: 1.5px solid var(--borda); background: var(--fundo); color: var(--texto); font-size: 0.95rem;
+}
+.campo-busca-leito input:focus { outline: none; border-color: var(--primaria); background: var(--branco); }
+
+.lista-andares-config { display: flex; flex-direction: column; gap: 22px; }
+.grupo-andar-config h3 {
+  margin: 0 0 12px; font-size: 0.9rem; font-weight: 700; color: var(--texto-suave);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.grade-leitos-config { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+
+.leito-config {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--fundo); border: 1.5px solid var(--borda); border-radius: 12px;
+  padding: 10px 12px; min-height: var(--alvo-toque-min); font-weight: 700; font-size: 0.9rem;
+  color: var(--texto); transition: border-color .15s ease, background .15s ease;
+}
+.leito-config:hover { border-color: var(--primaria-suave); }
+.leito-config.ativo { background: var(--branco); border-color: var(--baixa-fundo); }
+.leito-config.inativo { background: var(--fundo); color: var(--texto-suave); }
+.leito-config.inativo .leito-config-numero { text-decoration: line-through; text-decoration-color: var(--texto-suave); }
+
+/* Interruptor (switch) — bolinha desliza para a direita quando ativo. */
+.interruptor {
+  flex-shrink: 0; width: 38px; height: 22px; border-radius: 20px; background: var(--borda);
+  position: relative; transition: background .15s ease;
+}
+.interruptor-bola {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--branco); box-shadow: 0 1px 3px rgba(31, 58, 94, 0.25); transition: transform .15s ease;
+}
+.leito-config.ativo .interruptor { background: var(--baixa); }
+.leito-config.ativo .interruptor-bola { transform: translateX(16px); }
+.leito-config:disabled, .leito-config[disabled] { opacity: 0.6; pointer-events: none; }
+
+/* Central de Enfermagem → Acesso pelo QR Code (expirar acesso por leito) */
+.grade-leitos-acesso { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.botao-alternar-cartao { flex-shrink: 0; min-width: 92px; }
+.cabecalho-cartao-config:has(+ .corpo-cartao-config[hidden]) { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.corpo-cartao-config .resumo-leitos, .corpo-cartao-config .acoes-acesso-qrcode { margin-bottom: 16px; }
+.acoes-acesso-qrcode { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cronometro-reset {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--primaria-clara); color: var(--primaria-escura);
+  font-weight: 700; font-size: 0.82rem; padding: 8px 14px; border-radius: 20px; white-space: nowrap;
+}
+.cronometro-reset b { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.leito-acesso {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px;
+  border: 1.5px solid var(--borda); background: var(--fundo);
+}
+.leito-acesso.liberado { background: var(--branco); border-color: var(--baixa-fundo); }
+.leito-acesso.inativo { opacity: 0.6; }
+.leito-acesso-numero { font-weight: 800; }
+.leito-acesso-status { font-size: 0.74rem; color: var(--texto-suave); }
+.leito-acesso.liberado .leito-acesso-status { color: var(--baixa); font-weight: 700; }
+.leito-acesso .botao { min-height: 32px; padding: 6px 10px; font-size: 0.74rem; color: var(--perigo); }
+
+/* ==========================================================================
+   Responsivo — mobile-first: a base do projeto já é pensada para celular;
+   os breakpoints abaixo afinam progressivamente para telas maiores E para
+   as larguras de celular mais estreitas (320-430px), em vez de um único
+   salto genérico.
+   ========================================================================== */
+
+/* Celulares em geral (≤600px) */
+@media (max-width: 600px) {
+  .topo-admin, .topo { padding: 12px 14px; }
+  .marca-admin, .marca { font-size: 1rem; gap: 8px; }
+  .marca-admin .selo-admin, .marca .selo { width: 32px; height: 32px; border-radius: 10px; }
+  .titulos-admin span, .marca .subtitulo { font-size: 0.6rem; letter-spacing: 1.2px; }
+  .nav-admin, .topo nav { gap: 2px; }
+  .nav-admin a, .topo nav a, .botao-sair { padding: 8px 10px; font-size: 0.8rem; }
+
+  .pagina-admin, .pagina { padding: 14px 12px 40px; }
+  .cabecalho-pagina h1 { font-size: 1.25rem; }
+
+  .filtros { flex-direction: column; align-items: stretch; }
+  .filtros select, .filtros input { width: 100%; }
+  .painel-filtros-avancados { flex-direction: column; align-items: stretch; }
+  .campo-filtro { min-width: 0; }
+  .botao-filtros-avancados { margin-left: 0; }
+
+  .grade-cartoes-dash { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cartao-dash { padding: 14px; }
+  .cartao-dash .valor-dash { font-size: 1.5rem; }
+  .grade-graficos { grid-template-columns: 1fr; }
+  .barra-filtros-dashboard { align-items: stretch; }
+  .seletor-periodo { width: 100%; }
+  .seletor-periodo button { flex: 1; padding: 6px 8px; font-size: 0.76rem; }
+  .andar-total { margin-left: 0; }
+
+  .painel-grafico { padding: 14px; }
+  .barra-grafico-linha .rotulo-barra { width: 76px; font-size: 0.72rem; }
+
+  .modal-chamado-admin, .modal-chamado { padding: 18px; border-radius: 18px; max-height: 94vh; }
+  .bloco-info-admin, .bloco-info-modal { font-size: 0.84rem; }
+  .linha-acoes-modal .botao { flex: 1; }
+
+  .lista-chamados-admin, .lista-historico { grid-template-columns: 1fr; }
+
+  .cartao-config { padding: 16px; }
+  .cabecalho-cartao-config { flex-direction: column; align-items: stretch; }
+  .grade-leitos-config { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .acoes-acesso-qrcode { justify-content: space-between; }
+
+  .portal-caixa .portal-titulo { font-size: 1.1rem; }
+  .portal-legenda { font-size: 0.92rem; margin-bottom: 24px; }
+  .portal-cartao { padding: 20px; }
+  .portal-grade { gap: 14px; }
+}
+
+/* Celulares estreitos (390px e abaixo — iPhone SE/mini, Android compactos) */
+@media (max-width: 400px) {
+  .grade-stats-central { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-central { padding: 14px 16px; }
+  .stat-central .valor { font-size: 1.5rem; }
+  .painel-filtros-avancados { padding: 12px; }
+  .cartao-chamado-admin { padding: 14px; }
+}
+
+/* Muito estreitos (320-360px) */
+@media (max-width: 360px) {
+  .grade-cartoes-dash { grid-template-columns: 1fr; }
+  .nav-admin a span, .topo nav a span, .botao-sair span { display: none; }
+  .cartao-login, .modal-chamado-admin, .modal-chamado { padding: 16px; }
+}
+
+/* Tablets */
+@media (max-width: 900px) {
+  .grade-graficos { grid-template-columns: 1fr; }
+  .portal-grade { grid-template-columns: 1fr; max-width: 420px; }
+}
+
+/* Notebooks / desktop */
+@media (min-width: 1200px) {
+  .lista-chamados-admin, .lista-historico { gap: 18px; }
+}
+
+/* Telas grandes */
+@media (min-width: 1700px) {
+  .pagina-admin, .pagina { max-width: 1600px; }
+  .portal-caixa { max-width: 1040px; }
+  .cartao-dash .valor-dash { font-size: 2.2rem; }
+}

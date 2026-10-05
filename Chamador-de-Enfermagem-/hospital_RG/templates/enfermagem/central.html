@@ -1,0 +1,111 @@
+{% extends "enfermagem/base.html" %}
+{% block titulo %}Central de Enfermagem — Hospital Rio Grande{% endblock %}
+
+{% block conteudo %}
+<div class="app-admin">
+  <header class="topo-admin">
+    <div class="marca-admin">
+      <img src="{{ url_for('static', filename='img/hotelaria-logo-icon.png') }}" alt="Hospital Rio Grande" class="selo-admin">
+      <div class="titulos-admin">
+        <h1>Central de Enfermagem</h1>
+        <span>Hospital Rio Grande</span>
+      </div>
+    </div>
+    {% set pagina_ativa = 'central' %}
+    {% include "enfermagem/_nav_admin.html" %}
+  </header>
+
+  <div class="pagina-admin">
+    <div class="grade-stats-central" id="gradeStats">
+      <div class="stat-central"><span class="valor" id="statPendentes">0</span><span class="rotulo">Pendentes</span></div>
+      <div class="stat-central acento-atencao"><span class="valor" id="statEmAtendimento">0</span><span class="rotulo">Em atendimento</span></div>
+      <div class="stat-central acento-critica"><span class="valor" id="statCriticos">0</span><span class="rotulo">Críticos</span></div>
+      <div class="stat-central acento-critica"><span class="valor" id="statAtrasados">0</span><span class="rotulo">Acima do tempo esperado</span></div>
+      <div class="stat-central acento-sucesso"><span class="valor" id="statFinalizadosHoje">0</span><span class="rotulo">Finalizados hoje</span></div>
+    </div>
+
+    <div class="barra-filtros barra-filtros-central">
+      <button class="botao-filtros-avancados" id="botaoFiltrosAvancados" type="button" aria-expanded="false" aria-controls="painelFiltrosAvancados">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+        Mais filtros
+      </button>
+    </div>
+
+    <div class="painel-filtros-avancados" id="painelFiltrosAvancados" hidden>
+      <div class="grupo-chips-filtro">
+        <span class="rotulo-grupo-filtro">Status</span>
+        <div class="chips-filtro" id="chipsStatus">
+          <button class="chip ativo" data-status="">Todos ativos</button>
+          <button class="chip" data-status="pendente">Pendentes</button>
+          <button class="chip" data-status="em_atendimento">Em atendimento</button>
+        </div>
+      </div>
+      <div class="grupo-chips-filtro">
+        <span class="rotulo-grupo-filtro">Prioridade</span>
+        <div class="chips-filtro" id="chipsPrioridade">
+          <button class="chip ativo" data-prioridade="">Toda prioridade</button>
+          <button class="chip chip-critica" data-prioridade="critica">🔴 Crítico</button>
+          <button class="chip chip-media" data-prioridade="media">🟡 Médio</button>
+          <button class="chip chip-baixa" data-prioridade="baixa">🟢 Baixo</button>
+        </div>
+      </div>
+      <div class="campos-filtro-linha">
+        <div class="campo-filtro campo-filtro-busca">
+          <label for="filtroBusca">Buscar</label>
+          <input type="text" id="filtroBusca" placeholder="Leito, categoria, detalhe...">
+        </div>
+        <div class="campo-filtro">
+          <label for="filtroAndar">Andar</label>
+          <select id="filtroAndar">
+            <option value="">Todos os andares</option>
+            {% for andar in andares %}<option value="{{ andar }}">{{ andar|replace(' — LEITOS', '') }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="campo-filtro">
+          <label for="filtroLeito">Leito</label>
+          <input type="text" id="filtroLeito" placeholder="Ex.: 205">
+        </div>
+        <div class="campo-filtro">
+          <label for="filtroCategoria">Tipo de solicitação</label>
+          <select id="filtroCategoria">
+            <option value="">Todos os tipos</option>
+            {% for categoria in categorias %}{% if categoria != "Outros" %}<option value="{{ categoria }}">{{ categoria }}</option>{% endif %}{% endfor %}
+          </select>
+        </div>
+        <div class="campo-filtro">
+          <label for="filtroPeriodo">Período</label>
+          <select id="filtroPeriodo">
+            <option value="">Tudo</option>
+            <option value="hoje">Hoje</option>
+            <option value="7dias">Últimos 7 dias</option>
+            <option value="30dias">Últimos 30 dias</option>
+          </select>
+        </div>
+        <div class="campo-filtro">
+          <label for="filtroOrdenar">Ordenar por</label>
+          <select id="filtroOrdenar">
+            <option value="prioridade">Prioridade</option>
+            <option value="recentes">Mais recentes</option>
+            <option value="antigos">Mais antigos</option>
+          </select>
+        </div>
+      </div>
+      <button class="botao botao-fantasma pequeno" id="botaoLimparFiltros" type="button">Limpar filtros</button>
+    </div>
+
+    <div class="filtros-ativos" id="filtrosAtivos"></div>
+
+    <div class="lista-chamados-admin" id="listaChamados">
+      <div class="estado-vazio">Carregando chamados...</div>
+    </div>
+  </div>
+</div>
+
+<div class="fundo-modal" id="fundoModal">
+  <div class="modal-chamado-admin" id="modalChamado" role="dialog" aria-modal="true" aria-label="Detalhe do chamado"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/enfermagem/central.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,274 @@
+/* ==========================================================================
+   Hospital Rio Grande — Chamador de Enfermagem
+   Estilos ESPECÍFICOS deste módulo (fluxo do paciente, categorias, escala
+   de dor). Tudo que é compartilhado com a Hotelaria (tokens de cor, botões,
+   cabeçalho admin, dashboard, filtros, modal, login, portal e a tela de
+   acompanhamento do chamado/avaliação) vive em base.css.
+   ========================================================================== */
+@import url("base.css");
+
+/* ==========================================================================
+   Fluxo do paciente (mobile-first)
+   ========================================================================== */
+.app-paciente {
+  min-height: 100vh; display: flex; flex-direction: column;
+  max-width: 520px; margin: 0 auto; background: var(--fundo);
+}
+/* Cabeçalho em degradê azul — sem a logo do hospital (item já decidido em
+   rodada anterior do projeto; ver README). */
+.cabecalho-paciente {
+  padding: 22px 20px 18px;
+  background: linear-gradient(135deg, var(--primaria-escura), var(--primaria));
+  color: #fff;
+  border-radius: 0 0 26px 26px;
+  position: sticky; top: 0; z-index: 5;
+}
+.linha-topo-paciente { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.marca-paciente { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.2px; }
+.botao-voltar {
+  width: var(--alvo-toque-min); height: var(--alvo-toque-min); border-radius: 10px; border: none; background: rgba(255,255,255,0.18);
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.botao-voltar svg { width: 18px; height: 18px; }
+/* Tela de acompanhamento: cabeçalho com título/subtítulo e trilha, no mesmo
+   padrão da tela de acompanhamento da Hotelaria (não fica fixo no topo). */
+.cabecalho-paciente.cabecalho-acompanhar { position: static; }
+.cabecalho-paciente h1 { font-size: 1.5rem; margin: 0 0 4px; }
+.cabecalho-paciente p { margin: 0; opacity: 0.9; font-size: 0.9rem; }
+.cabecalho-acompanhar .trilha-passos { margin-top: 14px; }
+.trilha-passos { display: flex; gap: 6px; }
+.trilha-passos span { flex: 1; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.3); }
+.trilha-passos span.ativo { background: #fff; }
+
+.tela-paciente { flex: 1; padding: 22px 18px 100px; display: flex; flex-direction: column; }
+/* Passo 2 ("Como podemos ajudar?"): sem barra inferior, então o espaço que
+   ela ocuparia volta para as categorias, e a grade usa a altura restante
+   da tela para caber as 5 opções sem rolagem. */
+.tela-paciente.tela-sem-barra { padding-bottom: 22px; }
+.barra-inferior-paciente {
+  position: fixed; bottom: 0; left: 0; right: 0; max-width: 520px; margin: 0 auto;
+  padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--fundo) 60%, rgba(244,246,251,0));
+}
+
+.cabecalho-passo { margin-bottom: 20px; }
+.cabecalho-passo h1 { font-size: 1.65rem; font-weight: 800; margin-bottom: 6px; line-height: 1.15; }
+.cabecalho-passo p { color: var(--texto-suave); font-size: 1rem; line-height: 1.35; }
+
+/* Paciente: botão principal (Continuar / Enviar) grande e confortável para
+   um toque com o dedão, sem elementos vizinhos disputando o clique. */
+.app-paciente .barra-inferior-paciente .botao {
+  min-height: 56px; font-size: 1.05rem; border-radius: 14px;
+}
+
+.cartao-passo { background: var(--branco); border-radius: var(--raio); padding: 22px; box-shadow: var(--sombra); }
+
+.aviso-lgpd {
+  margin-top: 18px; display: flex; gap: 10px; align-items: flex-start;
+  background: var(--primaria-clara); border-radius: 12px; padding: 12px 14px;
+  font-size: 0.8rem; color: var(--primaria-escura); line-height: 1.4;
+}
+
+.resumo-linha {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--borda); font-size: 0.92rem;
+}
+.resumo-linha:last-child { border-bottom: none; }
+.resumo-linha span { color: var(--texto-suave); }
+.resumo-linha b { text-align: right; font-weight: 700; }
+
+/* ---------- Passo 2: categorias ---------- */
+/* Cartões compactos, com "Outros" (sempre a 5ª/última categoria) maior que
+   as demais — reúne os serviços de hotelaria, então ganha mais destaque e
+   espaço para o texto. */
+.grade-categorias { display: grid; grid-template-rows: repeat(4, 1fr) 1.6fr; gap: 10px; }
+.cartao-categoria {
+  display: flex; align-items: center; gap: 14px; text-align: left;
+  background: var(--branco); border: 1.5px solid var(--borda); border-radius: 16px;
+  padding: 14px 16px; box-shadow: var(--sombra); overflow: hidden;
+  transition: transform .1s ease, border-color .15s ease;
+}
+.cartao-categoria:hover { transform: translateY(-2px); }
+.icone-categoria {
+  flex-shrink: 0; width: 46px; height: 46px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.icone-categoria svg { width: 24px; height: 24px; }
+.texto-categoria { display: flex; flex-direction: column; gap: 2px; justify-content: center; min-width: 0; }
+.texto-categoria strong { font-size: 1.02rem; }
+.texto-categoria small {
+  color: var(--texto-suave); font-size: 0.8rem; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.cor-critica .icone-categoria { background: var(--critica-fundo); color: var(--critica); }
+.cor-critica { border-left: 4px solid var(--critica); }
+.cor-alta .icone-categoria { background: var(--alta-fundo); color: var(--alta); }
+.cor-alta { border-left: 4px solid var(--alta); }
+.cor-media .icone-categoria { background: var(--media-fundo); color: var(--media); }
+.cor-media { border-left: 4px solid var(--media); }
+.cor-baixa .icone-categoria { background: var(--baixa-fundo); color: var(--baixa); }
+.cor-baixa { border-left: 4px solid var(--baixa); }
+.cor-hotelaria .icone-categoria { background: var(--hotelaria-fundo); color: var(--hotelaria); }
+.cor-hotelaria { border-left: 4px solid var(--hotelaria); }
+/* "Outros" é maior que as demais categorias (ver .grade-categorias) —
+   ícone e textos crescem junto para acompanhar o cartão maior. */
+.grade-categorias .cor-hotelaria .icone-categoria { width: 56px; height: 56px; border-radius: 16px; }
+.grade-categorias .cor-hotelaria .icone-categoria svg { width: 30px; height: 30px; }
+.grade-categorias .cor-hotelaria .texto-categoria strong { font-size: 1.15rem; }
+.grade-categorias .cor-hotelaria .texto-categoria small { font-size: 0.86rem; white-space: normal; }
+
+/* ---------- Passo 3: subopções — grandes, com espaço generoso ---------- */
+.lista-subcategorias { display: flex; flex-direction: column; gap: 12px; }
+.opcao-subcategoria {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--branco); border: 2px solid var(--borda); border-radius: 16px;
+  padding: 20px 20px; text-align: left; font-size: 1.08rem; font-weight: 700;
+  min-height: 64px; width: 100%;
+}
+.opcao-subcategoria .marcador-opcao {
+  width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid var(--borda); flex-shrink: 0;
+}
+.opcao-subcategoria.selecionada { border-color: var(--primaria); background: var(--primaria-clara); }
+.opcao-subcategoria.selecionada .marcador-opcao { border-color: var(--primaria); background: var(--primaria); box-shadow: inset 0 0 0 4px #fff; }
+.opcao-subcategoria:disabled { opacity: 0.7; }
+
+/* ---------- Confirmação ---------- */
+.icone-confirmacao {
+  width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.icone-sucesso { background: var(--baixa-fundo); color: var(--baixa); }
+.icone-hotelaria { background: var(--hotelaria-fundo); color: var(--hotelaria); }
+.cartao-passo h2 { font-size: 1.3rem; margin-bottom: 6px; }
+.cartao-passo .resumo-linha { text-align: left; }
+
+/* ==========================================================================
+   Escala de dor (Passo 3, categoria "Dor") — grande, colorida e com rostos
+   para que o paciente possa escolher pela expressão facial, sem depender de
+   leitura. Nível 4 (dor no peito) sempre destacado como alerta clínico.
+   ========================================================================== */
+.escala-dor {
+  display: flex; flex-direction: column; gap: 12px; margin-top: 6px;
+}
+.opcao-dor {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--branco); border: 2px solid var(--borda); border-radius: 18px;
+  padding: 16px 18px; text-align: left; width: 100%; min-height: 72px;
+  transition: transform .12s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.opcao-dor:hover { transform: translateY(-1px); box-shadow: var(--sombra-media); }
+.opcao-dor.selecionada { border-color: var(--primaria); background: var(--primaria-clara); }
+.opcao-dor .rosto-dor {
+  flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 34px; line-height: 1;
+  border: 2px solid rgba(0,0,0,0.06);
+}
+.opcao-dor .rosto-dor svg { width: 28px; height: 28px; }
+.opcao-dor .texto-dor { display: flex; flex-direction: column; gap: 2px; }
+.opcao-dor .texto-dor strong { font-size: 1.1rem; font-weight: 800; }
+.opcao-dor .texto-dor small { font-size: 0.86rem; color: var(--texto-suave); }
+
+.opcao-dor.nivel-1 .rosto-dor { background: #e3f7ee; color: #1f7a53; }
+.opcao-dor.nivel-2 .rosto-dor { background: #fef7d6; color: #8b6b0f; }
+.opcao-dor.nivel-3 .rosto-dor { background: #ffe1cf; color: #a24012; }
+.opcao-dor.nivel-4 .rosto-dor { background: var(--critica-fundo); color: var(--critica); border-color: var(--critica); }
+.opcao-dor.nivel-4 { border-color: var(--critica); }
+.opcao-dor.nivel-4 .texto-dor small { color: var(--critica); font-weight: 700; }
+
+/* Variante usada pelas demais categorias (Urgência, Soro, Falar com
+   Enfermagem, Outros) — mesma faixa de cor ("grav") do motor de
+   prioridade do backend (ver enfermagem/priority.py::_tier), então a cor
+   mostrada ao paciente nunca diverge da prioridade real do chamado.
+   "Outros" não tem gravidade (encaminhado para a Hotelaria): usa a cor
+   "hotelaria" e ícone de serviço em vez de emoji. */
+.opcao-dor.grav-critica .rosto-dor { background: var(--critica-fundo); color: var(--critica); border-color: var(--critica); }
+.opcao-dor.grav-critica { border-color: var(--critica); }
+.opcao-dor.grav-critica .texto-dor small { color: var(--critica); font-weight: 700; }
+.opcao-dor.grav-media .rosto-dor { background: var(--media-fundo); color: var(--media); }
+.opcao-dor.grav-baixa .rosto-dor { background: var(--baixa-fundo); color: var(--baixa); }
+.opcao-dor.grav-hotelaria .rosto-dor { background: var(--hotelaria-fundo); color: var(--hotelaria); }
+
+/* Cor própria por opção (campo "cor" em OPCOES_VISUAIS) — mesmo estilo de
+   fundo pastel + anel suave da escala de Dor, sem alterar a gravidade. */
+.opcao-dor.cor-vermelho .rosto-dor { background: #fde0e2; border-color: #f2a0a6; }
+.opcao-dor.cor-laranja  .rosto-dor { background: #ffe1cf; border-color: #f7b98f; }
+.opcao-dor.cor-verde    .rosto-dor { background: #e3f7ee; border-color: #9fd9bd; }
+
+/* ==========================================================================
+   Passo 2 (categorias) — versão "acessibilidade primeiro":
+   ícones maiores, contraste alto — mas sem estourar a altura das 5 opções,
+   que precisam caber juntas na tela sem rolagem.
+   ========================================================================== */
+.cartao-categoria { padding: 10px 16px; min-height: 0; gap: 14px; }
+.cartao-categoria .icone-categoria { width: 46px; height: 46px; border-radius: 14px; }
+.cartao-categoria .icone-categoria svg { width: 26px; height: 26px; }
+.cartao-categoria .texto-categoria strong { font-size: 1.08rem; }
+.cartao-categoria .texto-categoria small { font-size: 0.8rem; }
+
+/* Passo 3 (subopções de cada categoria): compacto o bastante para que
+   TODAS as opções — inclusive as 6 de Urgência — fiquem visíveis sem
+   rolar, sem depender de leitura (ícone/rosto grande continua à esquerda). */
+.escala-dor { gap: 8px; margin-top: 0; }
+.opcao-dor { padding: 10px 14px; min-height: 0; gap: 12px; border-radius: 16px; }
+.opcao-dor .rosto-dor { width: 46px; height: 46px; font-size: 28px; }
+.opcao-dor .rosto-dor svg { width: 24px; height: 24px; }
+.opcao-dor .texto-dor { min-width: 0; }
+.opcao-dor .texto-dor strong { font-size: 1rem; line-height: 1.25; }
+.opcao-dor .texto-dor small { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Celulares mais baixos (iPhone SE, Androids compactos): cabeçalho e
+   opções um degrau menores para tudo continuar cabendo na tela. */
+@media (max-height: 740px) {
+  .cabecalho-paciente { padding: 12px 20px 10px; }
+  .linha-topo-paciente { margin-bottom: 10px; }
+  .tela-paciente { padding-top: 12px; padding-bottom: 92px; }
+  .tela-paciente.tela-sem-barra { padding-bottom: 16px; }
+  .cabecalho-passo { margin-bottom: 10px; }
+  .cabecalho-passo h1 { font-size: 1.3rem; margin-bottom: 2px; }
+  .cabecalho-passo p { font-size: 0.86rem; }
+  .escala-dor { gap: 6px; }
+  .opcao-dor { padding: 7px 12px; }
+  .opcao-dor .rosto-dor { width: 40px; height: 40px; font-size: 24px; }
+  .opcao-dor .rosto-dor svg { width: 22px; height: 22px; }
+  .opcao-dor .texto-dor strong { font-size: 0.95rem; }
+  .opcao-dor .texto-dor small { font-size: 0.74rem; }
+}
+
+/* ==========================================================================
+   Configurações — Acesso do Paciente (QR Code)
+   ========================================================================== */
+.bloco-qrcode-paciente { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.imagem-qrcode {
+  width: 168px; height: 168px; padding: 10px; background: var(--branco);
+  border: 1px solid var(--borda); border-radius: 14px; flex-shrink: 0;
+}
+.detalhes-qrcode-paciente { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 10px; }
+.detalhes-qrcode-paciente label { font-size: 0.82rem; font-weight: 600; color: var(--texto-suave); }
+.campo-com-botao { display: flex; gap: 8px; }
+.campo-com-botao input {
+  flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--borda); font-size: 0.85rem; background: var(--fundo);
+}
+.pagina-configuracoes { display: flex; flex-direction: column; gap: 20px; }
+#textoModalExpirar { margin: 0 0 16px; color: var(--texto-suave); font-size: 0.92rem; }
+
+@media (max-width: 640px) {
+  .bloco-qrcode-paciente { flex-direction: column; align-items: center; text-align: center; }
+  .campo-com-botao { flex-direction: column; }
+}
+
+/* ==========================================================================
+   Configurações — Gerador de QR Code por Leito
+   ========================================================================== */
+.selecao-qrcode-leito { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
+.selecao-qrcode-leito .campo { flex: 1 1 200px; min-width: 200px; margin-bottom: 0; }
+.bloco-qrcode-leito-resultado { margin-top: 18px; }
+#avisoSemLeitoQrcode { text-align: left; padding: 0; margin-top: 4px; font-size: 0.85rem; }
+.botao-baixar-qrcode { display: inline-block; text-decoration: none; align-self: flex-start; }
+
+@media (max-width: 640px) {
+  .selecao-qrcode-leito { flex-direction: column; }
+}
+

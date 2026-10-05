@@ -1,0 +1,137 @@
+/* ==========================================================================
+   Hospital Rio Grande — Central de Hotelaria
+   Estilos ESPECÍFICOS deste módulo (fluxo do paciente, cartões de serviço,
+   quadro Kanban da Central, chat, avaliação). Tudo que é compartilhado com
+   a Enfermagem (tokens de cor, botões, cabeçalho admin, dashboard, filtros,
+   modal, login, portal) vive em base.css.
+   ========================================================================== */
+@import url("base.css");
+
+/* ---------- Área do paciente (mobile-first) ---------- */
+.app-paciente {
+  max-width: 520px; margin: 0 auto; min-height: 100vh;
+  background: var(--fundo); display: flex; flex-direction: column;
+}
+
+.cabecalho-paciente {
+  padding: 22px 20px 18px;
+  background: linear-gradient(135deg, var(--primaria-escura), var(--primaria));
+  color: #fff;
+  border-radius: 0 0 26px 26px;
+}
+.cabecalho-paciente .linha-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cabecalho-paciente .voltar {
+  width: var(--alvo-toque-min); height: var(--alvo-toque-min); border-radius: 10px;
+  background: rgba(255,255,255,0.18);
+  display: flex; align-items: center; justify-content: center;
+  border: none; color: #fff;
+}
+.cabecalho-paciente .marca-mini { font-weight: 800; font-size: 0.95rem; }
+.cabecalho-paciente h1 { font-size: 1.5rem; margin: 0 0 4px; }
+.cabecalho-paciente p { margin: 0; opacity: 0.9; font-size: 0.9rem; }
+.selo-leito {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.2);
+  padding: 6px 12px; border-radius: 30px;
+  font-size: 0.82rem; font-weight: 700; margin-top: 10px;
+}
+
+.tela-paciente { flex: 1; padding: 22px 18px 100px; }
+
+/* Passo 1: Andar → Leito (mesmo componente `.campo`/select de base.css já
+   usado pela Enfermagem — unificado para que os dois módulos peçam o leito
+   da mesma forma, sem texto livre). */
+.form-leito { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.aviso-lgpd {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--primaria-clara);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-size: 0.82rem;
+  color: var(--primaria-escura);
+  line-height: 1.5;
+}
+
+/* Cartões de serviço — grandes, com ícone bem visível para escolha rápida
+   mesmo sem ler os textos de apoio. */
+.grade-servicos { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+.cartao-servico {
+  display: flex; align-items: center; gap: 18px;
+  background: var(--branco); border-radius: var(--raio); padding: 22px 20px;
+  border: 2px solid var(--borda); box-shadow: var(--sombra);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  text-align: left; width: 100%; min-height: 88px;
+}
+.cartao-servico:hover, .cartao-servico:focus-visible { transform: translateY(-3px); box-shadow: var(--sombra-media); border-color: var(--primaria-suave); }
+.cartao-servico.selecionado { border-color: var(--primaria); background: var(--primaria-clara); }
+.cartao-servico .icone-servico {
+  flex-shrink: 0; width: 64px; height: 64px; border-radius: 18px;
+  background: var(--primaria-clara);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primaria);
+}
+.cartao-servico .icone-servico svg { width: 34px; height: 34px; }
+.cartao-servico .texto-servico h3 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; }
+.cartao-servico .texto-servico p { margin: 0; font-size: 0.88rem; color: var(--texto-suave); line-height: 1.4; }
+
+/* Descrição do chamado */
+.campo-descricao textarea {
+  width: 100%; min-height: 140px; padding: 16px; border-radius: 16px;
+  border: 2px solid var(--borda); font-size: 1rem; resize: vertical; background: var(--branco);
+}
+.campo-descricao textarea:focus { outline: none; border-color: var(--primaria); }
+.rotulo { font-weight: 700; font-size: 0.95rem; margin-bottom: 10px; display: block; }
+
+.barra-inferior-fixa {
+  position: sticky; bottom: 0; max-width: 520px; margin: 0 auto;
+  padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--fundo) 70%, transparent);
+}
+
+/* Status do chamado / avaliação: estilos em base.css (compartilhados com a
+   tela de acompanhamento da Enfermagem, que segue exatamente este padrão). */
+
+.indicador-passos { display: flex; gap: 6px; margin-top: 14px; }
+.indicador-passos span { flex: 1; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.3); }
+.indicador-passos span.ativo { background: #fff; }
+
+/* ---------- Cartão de chamado (Histórico — a Central usa o cartão
+   compartilhado .cartao-chamado-admin de base.css, igual à Enfermagem) ---------- */
+.cartao-chamado {
+  background: var(--branco); border-radius: 14px; padding: 16px 18px; box-shadow: var(--sombra);
+  border-left: 4px solid var(--primaria); cursor: pointer; transition: transform .12s ease, box-shadow .12s ease;
+  border-top: none; border-right: none; border-bottom: none; text-align: left; width: 100%; font: inherit; color: inherit;
+}
+.cartao-chamado:hover, .cartao-chamado:focus-visible { transform: translateY(-2px); box-shadow: var(--sombra-media); }
+.cartao-chamado.finalizado { border-left-color: var(--baixa); }
+.linha-cartao-topo { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
+
+/* Local em destaque (andar + leito) — âncora visual do cartão, para o
+   andar/leito serem identificados à primeira vista (mesmo papel que
+   `.leito-etiqueta-admin` cumpre nos cartões da Central de Enfermagem, só
+   que aqui com o andar também em evidência, não só o leito). */
+.local-cartao { display: flex; flex-direction: column; gap: 1px; }
+.local-andar { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto-suave); }
+.local-leito { font-size: 1.15rem; font-weight: 800; color: var(--texto); }
+
+.leito-etiqueta { font-weight: 800; font-size: 1rem; }
+.servico-etiqueta {
+  flex-shrink: 0; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  background: var(--primaria-clara); color: var(--primaria); padding: 3px 9px; border-radius: 20px;
+}
+.descricao-cartao { font-size: 0.88rem; color: var(--texto); margin: 0 0 10px; line-height: 1.4; }
+.rodape-cartao {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 0.76rem; color: var(--texto-suave);
+}
+.hora-cartao { font-size: 0.72rem; color: var(--texto-suave); }
+.acoes-cartao { display: flex; gap: 8px; margin-top: 10px; }
+.vazio-coluna { text-align: center; color: var(--texto-suave); font-size: 0.85rem; padding: 30px 10px; background: var(--branco); border-radius: 14px; border: 1.5px dashed var(--borda); }
+
+
+.avaliacao-exibicao { display: flex; align-items: center; gap: 6px; color: #92720a; font-weight: 700; }
+
+/* ---------- Utilidades ---------- */
+.svg-icone { width: 26px; height: 26px; }
+.svg-icone-pequeno { width: 18px; height: 18px; }
+

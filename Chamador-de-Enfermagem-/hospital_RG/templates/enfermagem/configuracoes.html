@@ -1,0 +1,150 @@
+{% extends "enfermagem/base.html" %}
+{% block titulo %}Configurações — Chamador de Enfermagem{% endblock %}
+
+{% block conteudo %}
+<div class="app-admin">
+  <header class="topo-admin">
+    <div class="marca-admin">
+      <img src="{{ url_for('static', filename='img/hotelaria-logo-icon.png') }}" alt="Hospital Rio Grande" class="selo-admin">
+      <div class="titulos-admin">
+        <h1>Configurações</h1>
+        <span>Hospital Rio Grande</span>
+      </div>
+    </div>
+    {% set pagina_ativa = 'configuracoes' %}
+    {% include "enfermagem/_nav_admin.html" %}
+  </header>
+
+  <div class="pagina-admin pagina-configuracoes">
+    <section class="cartao-config cartao-qrcode-leito">
+      <div class="cabecalho-cartao-config">
+        <div>
+          <h2>Gerador de QR Code por Leito</h2>
+          <p>Escolha um leito para gerar o QR Code próprio dele — ao escanear, o paciente já cai direto em "como podemos ajudar?", sem escolher andar/leito na tela.</p>
+        </div>
+      </div>
+
+      <div class="selecao-qrcode-leito">
+        <div class="campo">
+          <label for="selectAndarQrcode">Andar</label>
+          <select id="selectAndarQrcode">
+            <option value="" selected>Selecione o andar</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="selectLeitoQrcode">Leito</label>
+          <select id="selectLeitoQrcode" disabled>
+            <option value="" selected>Selecione o andar primeiro</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bloco-qrcode-paciente bloco-qrcode-leito-resultado" id="blocoQrcodeLeito" hidden>
+        <img src="" alt="QR Code do leito selecionado" id="imagemQrcodeLeito" class="imagem-qrcode">
+        <div class="detalhes-qrcode-paciente">
+          <label for="linkQrcodeLeito">Link deste leito</label>
+          <div class="campo-com-botao">
+            <input type="text" id="linkQrcodeLeito" readonly>
+            <button type="button" class="botao botao-fantasma pequeno" id="botaoCopiarLinkLeito">Copiar</button>
+          </div>
+          <a class="botao botao-primario pequeno botao-baixar-qrcode" id="botaoBaixarQrcodeLeito" download>Baixar QR Code (SVG)</a>
+        </div>
+      </div>
+      <p class="texto-carregando" id="avisoSemLeitoQrcode">Selecione um andar e um leito ativo para gerar o QR Code.</p>
+    </section>
+
+    <section class="cartao-config cartao-acesso-paciente">
+      <div class="cabecalho-cartao-config">
+        <div>
+          <h2>Acesso do Paciente (QR Code)</h2>
+          <p>A tela onde o paciente abre um chamado só pode ser acessada escaneando o QR Code do leito, e o acesso vale até a meia-noite (horário de Fortaleza).</p>
+        </div>
+      </div>
+
+      <div class="bloco-qrcode-paciente">
+        <img src="{{ url_for('enfermagem_pages.qrcode_acesso_paciente') }}" alt="QR Code de acesso à tela do paciente" id="imagemQrcode" class="imagem-qrcode">
+        <div class="detalhes-qrcode-paciente">
+          <label for="linkAcessoPaciente">Link do QR Code</label>
+          <div class="campo-com-botao">
+            <input type="text" id="linkAcessoPaciente" value="{{ url_acesso_paciente }}" readonly>
+            <button type="button" class="botao botao-fantasma pequeno" id="botaoCopiarLink">Copiar</button>
+          </div>
+          <p class="texto-suave">O QR Code é fixo — imprima uma vez e afixe no leito/quarto. Cada escaneamento libera o acesso só até a meia-noite; para derrubar um acesso antes disso, use "Acesso pelo QR Code" no fim da página.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cartao-config">
+      <div class="cabecalho-cartao-config">
+        <div>
+          <h2>Controle de Leitos</h2>
+          <p>Ative ou desative leitos. Um leito desativado some da tela do paciente e não pode receber novos chamados.</p>
+        </div>
+        <button type="button" class="botao botao-fantasma pequeno botao-alternar-cartao" data-alternar="corpoControleLeitos" aria-expanded="false" aria-controls="corpoControleLeitos">Mostrar</button>
+      </div>
+
+      <div class="corpo-cartao-config" id="corpoControleLeitos" hidden>
+        <div class="resumo-leitos" id="resumoLeitos">
+          <span class="resumo-leitos-item"><b id="totalAtivos">0</b> ativos</span>
+          <span class="resumo-leitos-item resumo-leitos-inativos"><b id="totalInativos">0</b> inativos</span>
+        </div>
+
+        <div class="campo campo-busca-leito">
+          <input type="text" id="buscaLeito" placeholder="Buscar andar ou leito...">
+        </div>
+
+        <div id="listaAndares" class="lista-andares-config">
+          <p class="texto-carregando">Carregando leitos...</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cartao-config painel-acesso-qrcode">
+      <div class="cabecalho-cartao-config">
+        <div>
+          <h2>Acesso pelo QR Code</h2>
+          <p>Quem escaneia o QR Code do leito entra sem senha até a meia-noite (horário de Fortaleza). "Expirar" derruba o acesso na hora; quem escanear de novo entra até a mesma meia-noite.</p>
+        </div>
+        <button type="button" class="botao botao-fantasma pequeno botao-alternar-cartao" data-alternar="corpoAcessoQrcode" aria-expanded="false" aria-controls="corpoAcessoQrcode">Mostrar</button>
+      </div>
+
+      <div class="corpo-cartao-config" id="corpoAcessoQrcode" hidden>
+        <div class="acoes-acesso-qrcode">
+          <span class="cronometro-reset" title="Todos os acessos expiram à meia-noite (horário de Fortaleza)">
+            Reseta em <b id="cronometroReset">--:--:--</b>
+          </span>
+          <span class="resumo-leitos-item"><b id="totalLiberados">0</b> liberados hoje</span>
+          <button type="button" class="botao perigo pequeno" id="botaoExpirarTodos">Expirar todos</button>
+        </div>
+
+        <div class="campo campo-busca-leito">
+          <input type="text" id="buscaLeitoAcesso" placeholder="Buscar andar ou leito..." aria-label="Buscar andar ou leito">
+        </div>
+
+        <div id="listaAcessoLeitos" class="lista-andares-config">
+          <p class="texto-carregando">Carregando leitos...</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="fundo-modal" id="fundoModalExpirar">
+  <div class="modal-chamado-admin" role="dialog" aria-modal="true" aria-labelledby="tituloModalExpirar">
+    <div class="modal-topo-admin">
+      <h2 id="tituloModalExpirar">Tem certeza?</h2>
+      <button class="fechar-modal" id="botaoFecharModalExpirar" aria-label="Fechar">✕</button>
+    </div>
+    <p id="textoModalExpirar"></p>
+    <div class="linha-acoes-modal">
+      <button type="button" class="botao botao-fantasma" id="botaoCancelarExpirar">Cancelar</button>
+      <button type="button" class="botao perigo" id="botaoConfirmarExpirar">Sim, expirar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/enfermagem/configuracoes.js') }}"></script>
+<script src="{{ url_for('static', filename='js/enfermagem/acesso_leitos.js') }}"></script>
+{% endblock %}

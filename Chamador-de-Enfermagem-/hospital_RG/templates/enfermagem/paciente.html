@@ -1,0 +1,36 @@
+{% extends "enfermagem/base.html" %}
+{% block titulo %}Chamador de Enfermagem — Hospital Rio Grande{% endblock %}
+{% block body_classe %}pagina-paciente{% endblock %}
+
+{% block conteudo %}
+<div class="app-paciente">
+
+  <header class="cabecalho-paciente">
+    <div class="linha-topo-paciente">
+      <button class="botao-voltar" id="botaoVoltar" style="visibility:hidden;" aria-label="Voltar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="marca-paciente">Chamador de Enfermagem</span>
+      <div style="width:34px;"></div>
+    </div>
+    <div class="trilha-passos" id="trilhaPassos">
+      <span data-passo="1" class="ativo"></span><span data-passo="2"></span><span data-passo="3"></span><span data-passo="4"></span>
+    </div>
+  </header>
+
+  <main class="tela-paciente" id="telaPaciente">
+    <!-- Conteúdo dinâmico renderizado via JS (fluxo de passos) -->
+  </main>
+
+  <div class="barra-inferior-paciente" id="barraInferior"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/enfermagem/acesso_paciente.js') }}"></script>
+<script>
+  window.CATEGORIAS = {{ categorias | tojson }};
+  window.LEITO_PREENCHIDO = {{ leito_preenchido | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/enfermagem/paciente.js') }}"></script>
+{% endblock %}

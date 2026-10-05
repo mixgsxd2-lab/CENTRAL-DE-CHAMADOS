@@ -1,0 +1,14 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Banco local de desenvolvimento — em produção o Render usa o caminho do
+# disco persistente (variável DATABASE_PATH), não este arquivo.
+hospital_rio_grande/*.db
+hospital_rio_grande/*.db-journal
+hospital_rio_grande/*.db-wal
+hospital_rio_grande/*.db-shm
+
+.DS_Store

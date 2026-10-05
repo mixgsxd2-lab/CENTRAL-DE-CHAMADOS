@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Hospital Rio Grande</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/enfermagem.css') }}">
+</head>
+<body class="fundo-portal">
+<div class="portal">
+  <div class="portal-caixa">
+    <img src="{{ url_for('static', filename='img/hotelaria-logo-wordmark.png') }}" alt="Hospital Rio Grande" class="portal-logo">
+    <h1 class="portal-titulo">Service</h1>
+    <p class="portal-legenda">Portal administrativo</p>
+
+    <div class="portal-grade">
+      <a href="{{ url_for('enfermagem_pages.login') }}" class="portal-cartao portal-cartao-enfermagem surgir">
+        <span class="portal-cartao-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.5 4.04 3 5.5l7 7Z"/></svg>
+        </span>
+        <h2>Admin Enfermagem</h2>
+        <p>Painel administrativo da equipe de enfermagem.</p>
+        <span class="portal-cartao-ir">Fazer login →</span>
+      </a>
+
+      <a href="{{ url_for('hotelaria_pages.login') }}" class="portal-cartao portal-cartao-hotelaria surgir">
+        <span class="portal-cartao-icone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/><path d="M17 8V6a2 2 0 0 0-2-2h-2"/></svg>
+        </span>
+        <h2>Admin Hotelaria</h2>
+        <p>Painel administrativo da equipe de hotelaria.</p>
+        <span class="portal-cartao-ir">Fazer login →</span>
+      </a>
+    </div>
+
+    <div class="portal-rodape">Hospital Rio Grande © 2026</div>
+  </div>
+</div>
+</body>
+</html>

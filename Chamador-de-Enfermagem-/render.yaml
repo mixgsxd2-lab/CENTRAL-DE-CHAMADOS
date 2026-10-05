@@ -1,0 +1,51 @@
+# Blueprint de deploy no Render — https://render.com/docs/blueprint-spec
+#
+# Como usar:
+#   1. Suba este repositório para o GitHub.
+#   2. No Render, clique em "New" -> "Blueprint" e aponte para o repositório.
+#      O Render lê este arquivo e cria o serviço sozinho.
+#
+# IMPORTANTE — banco de dados (SQLite) no plano Free:
+#   Sem disco persistente (recurso pago, Starter ou superior), o arquivo
+#   .db vive no sistema de arquivos efêmero do próprio serviço — ou seja,
+#   TODO CHAMADO CRIADO É PERDIDO sempre que o Render reinicia a instância
+#   (acontece com frequência no Free: after um período sem tráfego, a cada
+#   novo deploy, etc.). Adequado só para testar/demonstrar o site, nunca
+#   para uso real de um hospital. Para persistir os dados de verdade,
+#   volte a adicionar um bloco `disk` (montado em, por ex., /var/data) e a
+#   variável DATABASE_PATH apontando para dentro dele — exige plano pago.
+services:
+  - type: web
+    name: hospital-rio-grande
+    runtime: python
+    rootDir: hospital_rio_grande
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # "python -m gunicorn" em vez de "gunicorn" puro: o pip instala o
+    # pacote certinho, mas em alguns ambientes do Render o executável
+    # `gunicorn` não fica no PATH do container que roda o start command
+    # ("gunicorn: command not found" mesmo com o build OK). Chamando como
+    # módulo do Python, isso nunca depende do PATH.
+    #
+    # 1 worker + várias threads: evita duplicar a tarefa de segundo plano
+    # (expiração de confirmações da Hotelaria) e mantém o limitador de
+    # tentativas de login (em memória) funcionando corretamente — os dois
+    # dependem de um único processo.
+    startCommand: python -m gunicorn app:app --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: HOTELARIA_USUARIO
+        value: admin
+      - key: HOTELARIA_SENHA
+        generateValue: true
+      - key: ENFERMAGEM_USUARIO
+        value: enfermagem
+      - key: ENFERMAGEM_SENHA
+        generateValue: true
