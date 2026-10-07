@@ -1,5 +1,5 @@
 {% extends "hotelaria/base.html" %}
-{% block titulo %}Chamador de Hotelaria: Histórico de Chamados{% endblock %}
+{% block titulo %}Histórico de Chamados{% endblock %}
 {% block estilos_extra %}
 <script>
   window.SERVICOS = {{ servicos|tojson }};
@@ -10,7 +10,7 @@
   <div class="marca">
     <img src="{{ url_for('static', filename='img/hotelaria-logo-icon.png') }}" alt="Hospital Rio Grande" class="selo">
     <div>
-      Chamador de Hotelaria: Histórico de Chamados
+      Histórico de Chamados
       <span class="subtitulo">Hospital Rio Grande</span>
     </div>
   </div>
