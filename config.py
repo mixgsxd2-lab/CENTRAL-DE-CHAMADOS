@@ -56,7 +56,7 @@ class Config:
     HOTELARIA_USUARIO_TESTE = os.environ.get("HOTELARIA_USUARIO", "admin")
     HOTELARIA_SENHA_TESTE = os.environ.get("HOTELARIA_SENHA", "12345")
 
-    # Credenciais de teste da área administrativa do Chamador de Enfermagem
+    # Credenciais de teste da área administrativa da Central de Chamados
     # (ver enfermagem/auth.py e enfermagem/routes.py).
     ENFERMAGEM_USUARIO_TESTE = os.environ.get("ENFERMAGEM_USUARIO", "enfermagem")
     ENFERMAGEM_SENHA_TESTE = os.environ.get("ENFERMAGEM_SENHA", "12345")

@@ -540,7 +540,7 @@ def api_dashboard_resumo():
     media_avaliacao = round(sum(a["estrelas"] for a in avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0
 
     # "outros" não é um serviço de hotelaria de fato — é só a caixa de
-    # entrada de chamados encaminhados pelo Chamador de Enfermagem — então
+    # entrada de chamados encaminhados pela Central de Chamados — então
     # não entra no gráfico "Chamados por serviço".
     por_servico = {chave: 0 for chave in SERVICOS if chave != "outros"}
     for c in linhas:

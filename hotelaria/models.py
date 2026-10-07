@@ -4,7 +4,7 @@
 Preservado do projeto original `hospital_rio_grande-main`, adaptado de
 SQLAlchemy para SQLite puro (mesma técnica já usada no restante do
 projeto) e com um serviço novo, "outros", usado exclusivamente para
-receber solicitações encaminhadas pelo Chamador de Enfermagem quando o
+receber solicitações encaminhadas pela Central de Chamados quando o
 paciente escolhe a opção "OUTROS".
 """
 import re
@@ -39,7 +39,7 @@ SERVICOS = {
     },
     "outros": {
         "nome": "Solicitação geral",
-        "descricao": "Solicitações diversas encaminhadas pelo Chamador de Enfermagem (opção \"Outros\").",
+        "descricao": "Solicitações diversas encaminhadas pela Central de Chamados (opção \"Outros\").",
         "icone": "help-circle",
     },
 }
@@ -65,14 +65,14 @@ def servico_nome(servico):
     return SERVICOS.get(servico, {}).get("nome", servico)
 
 
-# Chamados encaminhados automaticamente pelo Chamador de Enfermagem gravam a
-# descrição já com o prefixo "Encaminhado pelo Chamador de Enfermagem ·
+# Chamados encaminhados automaticamente pela Central de Chamados gravam a
+# descrição já com o prefixo "Encaminhado pela Central de Chamados ·
 # <andar>, Leito <leito> · " (ver enfermagem/api.py) — era assim que a
 # origem e o local apareciam nos cartões antes de leito/andar virarem campos
 # próprios em destaque no cartão. Hoje esse prefixo só repete informação que
 # já aparece em local separado, então é removido na exibição (o texto bruto
 # continua salvo no banco, sem perda de histórico).
-_RE_PREFIXO_ENCAMINHADO = re.compile(r"^Encaminhado pelo Chamador de Enfermagem · [^·]+ · ")
+_RE_PREFIXO_ENCAMINHADO = re.compile(r"^Encaminhado pela Central de Chamados · [^·]+ · ")
 
 
 def descricao_exibicao(descricao):

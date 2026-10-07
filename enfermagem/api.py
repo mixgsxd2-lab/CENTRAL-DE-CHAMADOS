@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""API JSON do Chamador de Enfermagem — SQLite puro (sem ORM).
+"""API JSON da Central de Chamados — SQLite puro (sem ORM).
 
 Concorrência: as transições de status (`assumir`, `finalizar`) usam
 `UPDATE ... WHERE status = <status esperado>`. Se dois profissionais

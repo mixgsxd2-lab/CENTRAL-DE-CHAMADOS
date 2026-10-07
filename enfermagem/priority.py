@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Motor de prioridade do Chamador de Enfermagem.
+"""Motor de prioridade da Central de Chamados.
 
 A prioridade de um chamado é definida SOMENTE pela gravidade da subopção
 escolhida pelo paciente (0-100), definida em enfermagem/constants.py —

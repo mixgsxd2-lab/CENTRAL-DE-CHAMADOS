@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Autenticação da área administrativa do Chamador de Enfermagem.
+"""Autenticação da área administrativa da Central de Chamados.
 
 Mesmo padrão já usado pela Central de Hotelaria (hotelaria/routes.py):
 sessão simples de servidor + credenciais de teste configuráveis por

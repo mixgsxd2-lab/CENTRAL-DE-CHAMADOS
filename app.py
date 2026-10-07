@@ -3,13 +3,13 @@
 
 Um único processo Flask hospeda dois sistemas independentes:
 
-  • Chamador de Enfermagem  (blueprints enfermagem_pages / enfermagem_api)
+  • Central de Chamados  (blueprints enfermagem_pages / enfermagem_api)
   • Central de Hotelaria     (blueprints hotelaria_pages / hotelaria_api,
                                sistema já existente, preservado)
 
 Cada sistema tem seu próprio conjunto de tabelas e rotas — a única coisa
 que compartilham é o processo/porta e, quando o paciente escolhe "OUTROS"
-no Chamador de Enfermagem, uma chamada de função interna que cria o
+na Central de Chamados, uma chamada de função interna que cria o
 chamado diretamente na Hotelaria (ver hotelaria/services.py). Toda a
 persistência é SQLite puro (biblioteca padrão, sem ORM) e a atualização em
 tempo real é feita por polling — o mesmo padrão comprovado do projeto
@@ -43,7 +43,7 @@ def create_app():
     # `window.CATEGORIAS = {{ categorias | tojson }}`) tem sua própria
     # política padrão do Jinja2 com `sort_keys: True` — que ignora o
     # `app.json.sort_keys` e reordena os dicts alfabeticamente. Isso
-    # bagunçava a ordem das categorias do Chamador de Enfermagem (que
+    # bagunçava a ordem das categorias da Central de Chamados (que
     # precisa ser Urgência, Dor, Soro, Falar com Enfermagem, Outros — a
     # mesma ordem definida em enfermagem/constants.py). Sobrescrevemos essa
     # política para que `tojson` também preserve a ordem de inserção.

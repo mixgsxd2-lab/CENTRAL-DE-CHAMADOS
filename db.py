@@ -18,7 +18,7 @@ from flask import current_app, g
 
 SCHEMA = """
 -- ---------------------------------------------------------------------
--- Chamador de Enfermagem
+-- Central de Chamados
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS enfermagem_chamados (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

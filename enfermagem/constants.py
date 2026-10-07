@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Dados fixos do Chamador de Enfermagem: leitos, categorias e subopções.
+"""Dados fixos da Central de Chamados: leitos, categorias e subopções.
 
 A ordem das CATEGORIAS abaixo é a ordem exigida pela especificação e é
 preservada em toda a interface (tela do paciente, filtros, relatórios):

@@ -2,9 +2,9 @@
 """Função central de criação de chamados de Hotelaria.
 
 Usada tanto pela própria API da Hotelaria (paciente abre um chamado
-diretamente em `/hotelaria`) quanto pelo Chamador de Enfermagem, quando o
-paciente escolhe a opção "OUTROS" (seção 5 da especificação) — nesse caso o
-Chamador de Enfermagem chama esta função diretamente (mesmo processo,
+diretamente em `/hotelaria`) quanto pela Central de Chamados, quando o
+paciente escolhe a opção "OUTROS" (seção 5 da especificação) — nesse caso a Central
+de Chamados chama esta função diretamente (mesmo processo,
 mesmo banco), sem passar pela fila de enfermagem, garantindo que o chamado
 apareça imediatamente na Central de Hotelaria.
 """

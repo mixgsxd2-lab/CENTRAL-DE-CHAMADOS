@@ -1,4 +1,4 @@
-# Hospital Rio Grande — Chamador de Enfermagem
+# Hospital Rio Grande — Central de Chamados
 
 Sistema de chamados de enfermagem, 100% focado em atendimento de pacientes
 internados, com encaminhamento automático para a Central de Hotelaria
@@ -9,7 +9,7 @@ Flask**:
 
 | Sistema | Blueprints | Prefixo de URL | Propósito |
 |---|---|---|---|
-| **Chamador de Enfermagem** (novo/reescrito) | `enfermagem_pages`, `enfermagem_api` | `/enfermagem`, `/api/enfermagem` | Chamados clínicos: urgência, dor, soro, falar com enfermagem |
+| **Central de Chamados** (novo/reescrito) | `enfermagem_pages`, `enfermagem_api` | `/enfermagem`, `/api/enfermagem` | Chamados clínicos: urgência, dor, soro, falar com enfermagem |
 | **Central de Hotelaria** (sistema já existente, preservado) | `hotelaria_pages`, `hotelaria_api` | `/hotelaria`, `/hotelaria/api` | Solicitações não clínicas: acomodação, alimentação, lavanderia, manutenção, higienização |
 | **Portal** | `portal` | `/` | Tela inicial com as 2 entradas administrativas (Admin Enfermagem / Admin Hotelaria) |
 
@@ -34,7 +34,7 @@ automaticamente.
 Login de teste da Central de Hotelaria: `admin` / `12345` (variáveis de
 ambiente `HOTELARIA_USUARIO` / `HOTELARIA_SENHA` para trocar em produção).
 
-Login de teste da área administrativa do Chamador de Enfermagem:
+Login de teste da área administrativa do Central de Chamados:
 `enfermagem` / `12345` (variáveis de ambiente `ENFERMAGEM_USUARIO` /
 `ENFERMAGEM_SENHA` para trocar em produção).
 
@@ -146,7 +146,7 @@ históricos.
 **Portal**
 - `GET /` — tela inicial com as 3 entradas.
 
-**Chamador de Enfermagem** (`/enfermagem`, `/api/enfermagem`)
+**Central de Chamados** (`/enfermagem`, `/api/enfermagem`)
 - `GET /enfermagem/` — Passo 1/2 do paciente (andar/leito → tipo de
   solicitação).
 - `GET /enfermagem/acompanhar/<id>` — acompanhamento do chamado pelo
@@ -258,7 +258,7 @@ funcionalidade já testada e em funcionamento:
   `renderPasso3()` (`static/js/enfermagem/paciente.js`), que agora
   ramifica o comportamento pelo nome da categoria.
 
-- **Identidade visual do Chamador de Enfermagem copiada da Central de
+- **Identidade visual do Central de Chamados copiada da Central de
   Hotelaria.** Paleta de cores, tipografia (Manrope), raio de borda,
   sombras, botões, cards, chips e o cabeçalho em degradê azul da tela do
   paciente agora usam exatamente os mesmos valores de
@@ -270,7 +270,7 @@ funcionalidade já testada e em funcionamento:
   "em atendimento"). Aplicado em todas as rotas do sistema: paciente,
   acompanhamento, central, histórico, TV e a nova tela de login.
 
-- **Logo do hospital removida do topo do Chamador de Enfermagem.** Todos
+- **Logo do hospital removida do topo do Central de Chamados.** Todos
   os cabeçalhos (paciente, acompanhamento, central, histórico, TV,
   login) agora mostram só o nome em texto, sem a imagem da logo — o
   restante da identidade visual (cores, layout, tipografia) continua
@@ -346,7 +346,7 @@ testada e em funcionamento além do que está descrito abaixo:
   (Dashboard/Central/Histórico). O endpoint `GET /api/enfermagem/tv`
   **foi mantido** — ele também alimenta os cartões de status da Central
   (`central.js`), então removê-lo quebraria uma tela em uso.
-- **Link "Portal" removido do menu do Chamador de Enfermagem** (Dashboard/
+- **Link "Portal" removido do menu do Central de Chamados** (Dashboard/
   Central/Histórico), já que o botão "Sair" cobre a mesma necessidade de
   deixar a área administrativa.
 - **Filtros funcionais no Dashboard de Enfermagem.** Adicionado o mesmo
@@ -400,9 +400,9 @@ testada e em funcionamento além do que está descrito abaixo:
   também em `templates/hotelaria/dashboard.html`. O endpoint
   `GET /hotelaria/api/dashboard/resumo` passou a aceitar `servico`,
   `status` e `periodo`.
-- **Design do Chamador de Enfermagem e da Central de Hotelaria
+- **Design do Central de Chamados e da Central de Hotelaria
   unificado.** Foi corrigida uma inconsistência visual: as telas do
-  Chamador de Enfermagem (login, dashboard, central, histórico) usavam a
+  Central de Chamados (login, dashboard, central, histórico) usavam a
   versão **opaca** da logo (com um leve "halo" cinza visível atrás do
   ícone), enquanto a Hotelaria já usava a versão transparente — agora
   ambas usam a mesma logo transparente. O cabeçalho administrativo
