@@ -1,0 +1,67 @@
+# SQLite + limitador em memória => exatamente 1 réplica e estratégia Recreate
+# (o volume EBS é ReadWriteOnce e não pode ser usado por dois pods).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chamador
+  namespace: chamador
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: chamador}
+  template:
+    metadata:
+      labels: {app: chamador}
+    spec:
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: chamador
+          # Troque pelo URI do seu ECR: <conta>.dkr.ecr.<regiao>.amazonaws.com/chamador-enfermagem:<tag>
+          image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/chamador-enfermagem:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - {name: PORT, value: "8000"}
+            - {name: DATABASE_PATH, value: /data/hospital_rio_grande.db}
+            - {name: FLASK_DEBUG, value: "0"}
+            - {name: SESSION_COOKIE_SECURE, value: "1"}
+            - {name: DADOS_DEMO, value: "0"}
+            - {name: HOTELARIA_USUARIO, value: admin}
+            - {name: ENFERMAGEM_USUARIO, value: enfermagem}
+          envFrom:
+            - secretRef: {name: chamador-secrets}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+          readinessProbe:
+            httpGet: {path: /, port: 8000}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /, port: 8000}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities: {drop: ["ALL"]}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: chamador-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chamador
+  namespace: chamador
+spec:
+  type: ClusterIP
+  selector: {app: chamador}
+  ports:
+    - {port: 80, targetPort: 8000}

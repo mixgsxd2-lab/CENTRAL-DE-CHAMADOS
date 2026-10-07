@@ -1,0 +1,30 @@
+# Teste local da imagem que será publicada no ECR/EKS:
+#   docker compose up --build   ->  http://localhost:8000
+services:
+  chamador:
+    build: .
+    image: chamador-enfermagem:latest
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: "8000"
+      DATABASE_PATH: /data/hospital_rio_grande.db
+      FLASK_DEBUG: "0"
+      SECRET_KEY: ${SECRET_KEY:-troque-esta-chave-local}
+      SESSION_COOKIE_SECURE: "0"   # "1" apenas atrás de HTTPS
+      DADOS_DEMO: ${DADOS_DEMO:-1}
+      HOTELARIA_USUARIO: ${HOTELARIA_USUARIO:-admin}
+      HOTELARIA_SENHA: ${HOTELARIA_SENHA:-12345}
+      ENFERMAGEM_USUARIO: ${ENFERMAGEM_USUARIO:-enfermagem}
+      ENFERMAGEM_SENHA: ${ENFERMAGEM_SENHA:-12345}
+    volumes:
+      - chamador-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  chamador-data:

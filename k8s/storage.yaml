@@ -1,0 +1,24 @@
+# StorageClass gp3 (requer o addon EBS CSI driver no cluster).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chamador-data
+  namespace: chamador
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 5Gi
