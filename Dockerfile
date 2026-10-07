@@ -20,7 +20,7 @@ RUN useradd --system --uid 10001 --no-create-home app \
     && chown -R app:app /data /app
 USER 10001
 
-EXPOSE 8000
+EXPOSE 8005
 VOLUME ["/data"]
 
 # 1 worker + threads: o limitador de login (memória), a tarefa de segundo

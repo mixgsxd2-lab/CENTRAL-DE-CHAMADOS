@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 *.pyo
 
+.venv
+
 # Banco local de desenvolvimento — em produção o Render usa o caminho do
 # disco persistente (variável DATABASE_PATH), não este arquivo.
 hospital_rio_grande/*.db

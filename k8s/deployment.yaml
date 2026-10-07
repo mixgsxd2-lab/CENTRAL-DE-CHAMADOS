@@ -22,9 +22,9 @@ spec:
           # Troque pelo URI do seu ECR: <conta>.dkr.ecr.<regiao>.amazonaws.com/chamador-enfermagem:<tag>
           image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/chamador-enfermagem:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 8005
           env:
-            - {name: PORT, value: "8000"}
+            - {name: PORT, value: "8005"}
             - {name: DATABASE_PATH, value: /data/hospital_rio_grande.db}
             - {name: FLASK_DEBUG, value: "0"}
             - {name: SESSION_COOKIE_SECURE, value: "1"}
@@ -36,11 +36,11 @@ spec:
           volumeMounts:
             - {name: data, mountPath: /data}
           readinessProbe:
-            httpGet: {path: /, port: 8000}
+            httpGet: {path: /, port: 8005}
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: {path: /, port: 8000}
+            httpGet: {path: /, port: 8005}
             initialDelaySeconds: 15
             periodSeconds: 20
           resources:
@@ -64,4 +64,4 @@ spec:
   type: ClusterIP
   selector: {app: chamador}
   ports:
-    - {port: 80, targetPort: 8000}
+    - {port: 80, targetPort: 8005}
