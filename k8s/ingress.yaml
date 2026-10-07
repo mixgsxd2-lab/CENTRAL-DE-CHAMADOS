@@ -1,0 +1,24 @@
+# Requer o AWS Load Balancer Controller. Para HTTPS, informe o ARN do
+# certificado ACM em certificate-arn (e ajuste o host).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chamador
+  namespace: chamador
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:123456789012:certificate/REPLACE_ME
+spec:
+  ingressClassName: alb
+  rules:
+    - host: chamador.exemplo.com.br
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: chamador, port: {number: 80}}
