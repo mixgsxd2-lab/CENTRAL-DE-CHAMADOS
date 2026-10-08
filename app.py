@@ -62,6 +62,11 @@ def create_app():
     app.register_blueprint(hotelaria_pages)
     app.register_blueprint(hotelaria_api)
 
+    @app.get("/healthz")
+    def healthz():
+        """Sinal mínimo de disponibilidade para Docker e Kubernetes."""
+        return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
+
     @app.errorhandler(404)
     def nao_encontrado(e):
         if _quer_json():

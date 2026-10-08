@@ -1,46 +1,66 @@
-# SQLite + limitador em memória => exatamente 1 réplica e estratégia Recreate
-# (o volume EBS é ReadWriteOnce e não pode ser usado por dois pods).
+# SQLite + limitador em memória exigem exatamente uma réplica e estratégia
+# Recreate: o volume EBS ReadWriteOnce não pode ser montado por dois Pods.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: chamador
-  namespace: chamador
+  name: central-chamados
+  namespace: prd-central-chamados
+  labels:
+    app.kubernetes.io/name: central-chamados
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: central-chamados
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
-    matchLabels: {app: chamador}
+    matchLabels:
+      app.kubernetes.io/name: central-chamados
+      app.kubernetes.io/component: application
   template:
     metadata:
-      labels: {app: chamador}
+      labels:
+        app.kubernetes.io/name: central-chamados
+        app.kubernetes.io/component: application
+        app.kubernetes.io/part-of: central-chamados
     spec:
       securityContext:
         fsGroup: 10001
+        runAsUser: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: chamador
-          # Troque pelo URI do seu ECR: <conta>.dkr.ecr.<regiao>.amazonaws.com/chamador-enfermagem:<tag>
-          image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/chamador-enfermagem:latest
+        - name: application
+          # Substitua REPLACE_ME por uma tag imutável já enviada ao ECR.
+          image: 911107441482.dkr.ecr.sa-east-1.amazonaws.com/central-de-chamados:REPLACE_ME
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8005
+            - name: http
+              containerPort: 8000
           env:
-            - {name: PORT, value: "8005"}
+            - {name: PORT, value: "8000"}
             - {name: DATABASE_PATH, value: /data/hospital_rio_grande.db}
             - {name: FLASK_DEBUG, value: "0"}
             - {name: SESSION_COOKIE_SECURE, value: "1"}
             - {name: DADOS_DEMO, value: "0"}
-            - {name: HOTELARIA_USUARIO, value: admin}
-            - {name: ENFERMAGEM_USUARIO, value: enfermagem}
           envFrom:
-            - secretRef: {name: chamador-secrets}
+            - secretRef:
+                name: central-chamados-secrets
           volumeMounts:
-            - {name: data, mountPath: /data}
+            - name: data
+              mountPath: /data
           readinessProbe:
-            httpGet: {path: /, port: 8005}
+            httpGet:
+              path: /healthz
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: {path: /, port: 8005}
+            httpGet:
+              path: /healthz
+              port: http
             initialDelaySeconds: 15
             periodSeconds: 20
           resources:
@@ -49,19 +69,28 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
-            capabilities: {drop: ["ALL"]}
+            capabilities:
+              drop: ["ALL"]
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: chamador-data
+            claimName: central-chamados-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: chamador
-  namespace: chamador
+  name: central-chamados
+  namespace: prd-central-chamados
+  labels:
+    app.kubernetes.io/name: central-chamados
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: central-chamados
 spec:
   type: ClusterIP
-  selector: {app: chamador}
+  selector:
+    app.kubernetes.io/name: central-chamados
+    app.kubernetes.io/component: application
   ports:
-    - {port: 80, targetPort: 8005}
+    - name: http
+      port: 80
+      targetPort: http
