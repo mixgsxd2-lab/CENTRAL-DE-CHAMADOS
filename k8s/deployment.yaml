@@ -34,7 +34,7 @@ spec:
       containers:
         - name: application
           # Tag imutável publicada no ECR compartilhado da Central de Serviços.
-          image: 911107441482.dkr.ecr.sa-east-1.amazonaws.com/centralservicos-frontend:central-chamados-2026-10-13-1
+          image: 911107441482.dkr.ecr.sa-east-1.amazonaws.com/centralservicos-frontend:central-chamados-2026-10-14-1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
