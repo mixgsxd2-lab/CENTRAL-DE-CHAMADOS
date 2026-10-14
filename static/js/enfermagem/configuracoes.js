@@ -116,23 +116,6 @@
   });
 
   // ---------------------------------------------------------------------
-  // Acesso do Paciente (QR Code) — copiar link (o QR Code é fixo; expirar
-  // acessos fica no cartão "Acesso pelo QR Code" — ver acesso_leitos.js)
-  // ---------------------------------------------------------------------
-  const linkAcessoPaciente = document.getElementById("linkAcessoPaciente");
-  const botaoCopiarLink = document.getElementById("botaoCopiarLink");
-
-  botaoCopiarLink.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(linkAcessoPaciente.value);
-      HRG.toast("Link copiado.", "sucesso");
-    } catch (e) {
-      linkAcessoPaciente.select();
-      HRG.toast("Selecione e copie o link manualmente.", "info");
-    }
-  });
-
-  // ---------------------------------------------------------------------
   // Gerador de QR Code por Leito
   // ---------------------------------------------------------------------
   const selectAndarQrcode = document.getElementById("selectAndarQrcode");
