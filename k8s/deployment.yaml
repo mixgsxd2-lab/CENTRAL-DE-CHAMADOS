@@ -33,8 +33,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: application
-          # Substitua REPLACE_ME por uma tag imutável já enviada ao ECR.
-          image: 911107441482.dkr.ecr.sa-east-1.amazonaws.com/central-de-chamados:REPLACE_ME
+          # Tag imutável publicada no ECR compartilhado da Central de Serviços.
+          image: 911107441482.dkr.ecr.sa-east-1.amazonaws.com/centralservicos-frontend:central-chamados-2026-10-13-1
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
