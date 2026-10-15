@@ -11,8 +11,8 @@ Dashboards) mostrem uma experiência completa.
 Regras:
   • NUNCA apaga nada — só insere.
   • Na inicialização do app (`db.init_db`) só roda se as duas tabelas de
-    chamados estiverem VAZIAS (ex.: primeira execução, ou após um reinício
-    do Render Free, que perde o arquivo .db). Desligue com DADOS_DEMO=0.
+    chamados estiverem VAZIAS (ex.: primeira execução com um banco MySQL
+    novo). Desligue com DADOS_DEMO=0.
   • Nenhum dado pessoal de paciente: como no resto do sistema, a única
     identificação é andar + leito.
 
@@ -217,12 +217,12 @@ def _gerar_enfermagem(rng, criado, andar, leito, opcao=None, estado=None, agora_
 _SQL_ENF = """INSERT INTO enfermagem_chamados
     (andar, leito, categoria, subcategoria, detalhe, gravidade_base, status, profissional_responsavel,
      criado_em, inicio_atendimento, finalizado_em, avaliacao, comentario_avaliacao)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
 
 _SQL_HOT = """INSERT INTO hotelaria_chamados
     (leito, servico, descricao, status, origem, criado_em, iniciado_em, finalizado_em,
      confirmacao_resolucao, prazo_confirmacao, andar)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
 
 
 def _inserir_hotelaria(conn, rng, criado, andar, leito, agora_ref, servico=None, estado=None, origem=None):
@@ -276,7 +276,7 @@ def _inserir_hotelaria(conn, rng, criado, andar, leito, agora_ref, servico=None,
             if momento > agora_ref:
                 break
             conn.execute(
-                "INSERT INTO hotelaria_mensagens (chamado_id, remetente, mensagem, criado_em, lida_central) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO hotelaria_mensagens (chamado_id, remetente, mensagem, criado_em, lida_central) VALUES (%s, %s, %s, %s, %s)",
                 (chamado_id, remetente, texto, para_texto(momento), 1 if estado == "finalizado" or remetente == "central" else 0),
             )
             momento += timedelta(minutes=rng.uniform(2, 9))
@@ -285,7 +285,7 @@ def _inserir_hotelaria(conn, rng, criado, andar, leito, agora_ref, servico=None,
         estrelas = _nota(rng, espera > 45)
         comentario = rng.choice(_COMENTARIOS_HOT[estrelas]) if rng.random() < 0.4 else None
         conn.execute(
-            "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (?, ?, ?, ?)",
+            "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (%s, %s, %s, %s)",
             (chamado_id, estrelas, comentario, para_texto(min(fim + timedelta(minutes=rng.uniform(2, 25)), agora_ref))),
         )
     return chamado_id
@@ -335,13 +335,13 @@ def _lote_ativos(conn, rng, agora_ref):
         criado = agora_ref - timedelta(minutes=min_atras, seconds=rng.randint(0, 50))
         chamado_id = _inserir_hotelaria(conn, rng, criado, andar, leito, agora_ref, servico=servico, estado=estado, origem=origem)
         if estado == "em_andamento":
-            conn.execute("UPDATE hotelaria_chamados SET iniciado_em = ? WHERE id = ?",
+            conn.execute("UPDATE hotelaria_chamados SET iniciado_em = %s WHERE id = %s",
                          (para_texto(criado + timedelta(minutes=min_atras * 0.45)), chamado_id))
 
 
 def banco_vazio(conn):
-    enf = conn.execute("SELECT COUNT(*) FROM enfermagem_chamados").fetchone()[0]
-    hot = conn.execute("SELECT COUNT(*) FROM hotelaria_chamados").fetchone()[0]
+    enf = conn.execute("SELECT COUNT(*) AS total FROM enfermagem_chamados").fetchone()["total"]
+    hot = conn.execute("SELECT COUNT(*) AS total FROM hotelaria_chamados").fetchone()["total"]
     return enf == 0 and hot == 0
 
 
@@ -398,11 +398,10 @@ if __name__ == "__main__":
     import sys
 
     from config import Config
-    from db import SCHEMA, Conexao, _config_mysql
+    from db import Conexao
 
-    conexao = Conexao(**_config_mysql(vars(Config)))
-    conexao.executescript(SCHEMA)
-    conexao.commit()
+    conexao = Conexao(vars(Config))
+    conexao.criar_tabelas()
     if "--ativos" in sys.argv:
         acrescentar_ativos(conexao)
         print("Novo lote de chamados ativos acrescentado.")

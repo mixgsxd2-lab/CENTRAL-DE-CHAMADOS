@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Central de Hotelaria — dados fixos e serialização (SQLite puro).
+"""Central de Hotelaria — dados fixos e serialização (MySQL, sem ORM).
 
 Preservado do projeto original `hospital_rio_grande-main`, adaptado de
-SQLAlchemy para SQLite puro (mesma técnica já usada no restante do
+SQLAlchemy para SQL direto no MySQL (mesma técnica já usada no restante do
 projeto) e com um serviço novo, "outros", usado exclusivamente para
 receber solicitações encaminhadas pela Central de Chamados quando o
 paciente escolhe a opção "OUTROS".

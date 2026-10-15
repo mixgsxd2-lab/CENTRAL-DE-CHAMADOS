@@ -4,7 +4,7 @@ projeto unificado como um Blueprint independente (rotas e modelos
 próprios). Comportamento e fluxo preservados do projeto original: login,
 chat entre paciente e Central, confirmação de resolução em até 30 minutos,
 avaliação por estrelas. A única mudança de fundo é a camada de dados —
-trocada de SQLAlchemy para SQLite puro (mesma técnica já usada no restante
+trocada de SQLAlchemy para SQL direto no MySQL (mesma técnica já usada no restante
 do projeto) — e o tempo real, que passou de Socket.IO para atualização por
 polling (a cada poucos segundos), evitando uma dependência externa a mais
 sem abrir mão de um chat que "parece" instantâneo.
@@ -61,17 +61,17 @@ def _construir_filtros_dashboard(args, ignorar_periodo=False):
     q = (args.get("q") or "").strip()
 
     if servico and servico != "todos":
-        clausulas.append("servico = ?")
+        clausulas.append("servico = %s")
         params.append(servico)
     if status and status != "todos":
-        clausulas.append("status = ?")
+        clausulas.append("status = %s")
         params.append(status)
     if andar:
-        clausulas.append("andar = ?")
+        clausulas.append("andar = %s")
         params.append(andar)
     if q:
         termo = f"%{q}%"
-        clausulas.append("(leito LIKE ? OR descricao LIKE ?)")
+        clausulas.append("(leito LIKE %s OR descricao LIKE %s)")
         params.extend([termo, termo])
 
     if not ignorar_periodo:
@@ -79,17 +79,17 @@ def _construir_filtros_dashboard(args, ignorar_periodo=False):
         if periodo:
             limite = limite_periodo(periodo)
             if limite is not None:
-                clausulas.append("criado_em >= ?")
+                clausulas.append("criado_em >= %s")
                 params.append(para_texto(limite))
         # Intervalo manual (De/Até) — mesmo comportamento do Dashboard de
         # Enfermagem.
         data_inicio = (args.get("data_inicio") or "").strip()
         data_fim = (args.get("data_fim") or "").strip()
         if data_inicio:
-            clausulas.append("criado_em >= ?")
+            clausulas.append("criado_em >= %s")
             params.append(f"{data_inicio} 00:00:00")
         if data_fim:
-            clausulas.append("criado_em <= ?")
+            clausulas.append("criado_em <= %s")
             params.append(f"{data_fim} 23:59:59")
 
     return clausulas, params
@@ -170,7 +170,7 @@ def historico():
 # ---------------------------------------------------------------------------
 def _buscar_chamado_ou_404(chamado_id):
     db = get_db()
-    row = db.execute("SELECT * FROM hotelaria_chamados WHERE id = ?", (chamado_id,)).fetchone()
+    row = db.execute("SELECT * FROM hotelaria_chamados WHERE id = %s", (chamado_id,)).fetchone()
     if row is None:
         abort(404, description="Chamado não encontrado.")
     return row
@@ -179,7 +179,7 @@ def _buscar_chamado_ou_404(chamado_id):
 def _mensagens_do_chamado(chamado_id):
     db = get_db()
     linhas = db.execute(
-        "SELECT * FROM hotelaria_mensagens WHERE chamado_id = ? ORDER BY criado_em ASC, id ASC",
+        "SELECT * FROM hotelaria_mensagens WHERE chamado_id = %s ORDER BY criado_em ASC, id ASC",
         (chamado_id,),
     ).fetchall()
     return [mensagem_to_dict(r) for r in linhas]
@@ -187,16 +187,16 @@ def _mensagens_do_chamado(chamado_id):
 
 def _avaliacao_do_chamado(chamado_id):
     db = get_db()
-    return db.execute("SELECT * FROM hotelaria_avaliacoes WHERE chamado_id = ?", (chamado_id,)).fetchone()
+    return db.execute("SELECT * FROM hotelaria_avaliacoes WHERE chamado_id = %s", (chamado_id,)).fetchone()
 
 
 def _tem_mensagem_nao_lida(chamado_id):
     db = get_db()
     row = db.execute(
-        "SELECT COUNT(*) FROM hotelaria_mensagens WHERE chamado_id = ? AND remetente = 'paciente' AND lida_central = 0",
+        "SELECT COUNT(*) AS total FROM hotelaria_mensagens WHERE chamado_id = %s AND remetente = 'paciente' AND lida_central = 0",
         (chamado_id,),
     ).fetchone()
-    return row[0] > 0
+    return row["total"] > 0
 
 
 def _chamado_completo_dict(chamado_id):
@@ -240,7 +240,7 @@ def api_obter_chamado(chamado_id):
 def api_chamados_por_leito(leito):
     db = get_db()
     linhas = db.execute(
-        "SELECT * FROM hotelaria_chamados WHERE leito = ? ORDER BY criado_em DESC LIMIT 20", (leito,)
+        "SELECT * FROM hotelaria_chamados WHERE leito = %s ORDER BY criado_em DESC LIMIT 20", (leito,)
     ).fetchall()
     return jsonify([chamado_to_dict(r) for r in linhas])
 
@@ -263,7 +263,7 @@ def api_enviar_mensagem(chamado_id):
 
     db = get_db()
     db.execute(
-        "INSERT INTO hotelaria_mensagens (chamado_id, remetente, mensagem, criado_em, lida_central) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO hotelaria_mensagens (chamado_id, remetente, mensagem, criado_em, lida_central) VALUES (%s, %s, %s, %s, %s)",
         (chamado_id, remetente, texto, para_texto(agora()), 1 if remetente == "central" else 0),
     )
     db.commit()
@@ -283,7 +283,7 @@ def api_confirmar_resolucao(chamado_id):
 
     novo_valor = CONFIRMACAO_RESOLVIDO if resolvido else CONFIRMACAO_NAO_RESOLVIDO
     db = get_db()
-    db.execute("UPDATE hotelaria_chamados SET confirmacao_resolucao = ? WHERE id = ?", (novo_valor, chamado_id))
+    db.execute("UPDATE hotelaria_chamados SET confirmacao_resolucao = %s WHERE id = %s", (novo_valor, chamado_id))
     db.commit()
     return jsonify(_chamado_completo_dict(chamado_id))
 
@@ -308,11 +308,11 @@ def api_criar_avaliacao(chamado_id):
         return jsonify({"erro": "Este chamado já foi avaliado."}), 400
 
     cur = db.execute(
-        "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (?, ?, ?, ?)",
+        "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (%s, %s, %s, %s)",
         (chamado_id, estrelas, comentario, para_texto(agora())),
     )
     db.commit()
-    nova = db.execute("SELECT * FROM hotelaria_avaliacoes WHERE id = ?", (cur.lastrowid,)).fetchone()
+    nova = db.execute("SELECT * FROM hotelaria_avaliacoes WHERE id = %s", (cur.lastrowid,)).fetchone()
     return jsonify(avaliacao_to_dict(nova)), 201
 
 
@@ -339,15 +339,15 @@ def api_central_resumo():
 
     hoje_texto = para_texto(agora().replace(hour=0, minute=0, second=0, microsecond=0))
     finalizados_hoje = db.execute(
-        "SELECT COUNT(*) FROM hotelaria_chamados WHERE status = ? AND finalizado_em >= ?",
+        "SELECT COUNT(*) AS total FROM hotelaria_chamados WHERE status = %s AND finalizado_em >= %s",
         (STATUS_FINALIZADO, hoje_texto),
-    ).fetchone()[0]
+    ).fetchone()["total"]
 
     # "outros" não é um serviço de hotelaria de fato (ver por_servico em
     # api_dashboard_resumo) — não entra na disputa por "mais requisitado".
     linha_top = db.execute(
         """SELECT servico, COUNT(*) as total FROM hotelaria_chamados
-           WHERE criado_em >= ? AND servico != 'outros'
+           WHERE criado_em >= %s AND servico != 'outros'
            GROUP BY servico ORDER BY total DESC LIMIT 1""",
         (hoje_texto,),
     ).fetchone()
@@ -377,31 +377,31 @@ def api_listar_chamados():
     q = (request.args.get("q") or "").strip()
 
     if servico and servico != "todos":
-        clausulas.append("servico = ?")
+        clausulas.append("servico = %s")
         params.append(servico)
     if status and status != "todos":
-        clausulas.append("status = ?")
+        clausulas.append("status = %s")
         params.append(status)
     elif request.args.get("status_ativos"):
         # Central: pede apenas quem ainda precisa de ação. Finalizados ficam
         # só no Histórico. Ignorado quando `status` explícito foi passado.
         clausulas.append(f"status IN ('{STATUS_PENDENTE}', '{STATUS_ANDAMENTO}')")
     if andar:
-        clausulas.append("andar = ?")
+        clausulas.append("andar = %s")
         params.append(andar)
     if leito:
-        clausulas.append("leito LIKE ?")
+        clausulas.append("leito LIKE %s")
         params.append(f"%{leito}%")
     if q:
         termo = f"%{q}%"
-        clausulas.append("(leito LIKE ? OR descricao LIKE ?)")
+        clausulas.append("(leito LIKE %s OR descricao LIKE %s)")
         params.extend([termo, termo])
 
     periodo = request.args.get("periodo")
     if periodo:
         limite_data = limite_periodo(periodo)
         if limite_data is not None:
-            clausulas.append("criado_em >= ?")
+            clausulas.append("criado_em >= %s")
             params.append(para_texto(limite_data))
 
     sql = "SELECT * FROM hotelaria_chamados"
@@ -416,10 +416,10 @@ def api_listar_chamados():
 
     limite = request.args.get("limite", type=int)
     offset = request.args.get("offset", type=int) or 0
-    total = db.execute(f"SELECT COUNT(*) FROM ({sql}) AS contagem", params).fetchone()[0]
+    total = db.execute(f"SELECT COUNT(*) AS total FROM ({sql}) AS contagem", params).fetchone()["total"]
     limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
     linhas = db.execute(
-        sql + f" ORDER BY {ordem_sql} LIMIT ? OFFSET ?", params + [limite_sql, offset]
+        sql + f" ORDER BY {ordem_sql} LIMIT %s OFFSET %s", params + [limite_sql, offset]
     ).fetchall()
 
     resultado = []
@@ -440,7 +440,7 @@ def api_assumir_chamado(chamado_id):
     if row["status"] == STATUS_PENDENTE:
         db = get_db()
         db.execute(
-            "UPDATE hotelaria_chamados SET status = ?, iniciado_em = ? WHERE id = ?",
+            "UPDATE hotelaria_chamados SET status = %s, iniciado_em = %s WHERE id = %s",
             (STATUS_ANDAMENTO, para_texto(agora()), chamado_id),
         )
         db.commit()
@@ -458,21 +458,21 @@ def api_alterar_status(chamado_id):
         return jsonify({"erro": "Status inválido."}), 400
 
     db = get_db()
-    campos = ["status = ?"]
+    campos = ["status = %s"]
     valores = [novo_status]
     if novo_status == STATUS_ANDAMENTO and not row["iniciado_em"]:
-        campos.append("iniciado_em = ?")
+        campos.append("iniciado_em = %s")
         valores.append(para_texto(agora()))
     if novo_status == STATUS_FINALIZADO:
-        campos.append("finalizado_em = ?")
+        campos.append("finalizado_em = %s")
         valores.append(para_texto(agora()))
-        campos.append("confirmacao_resolucao = ?")
+        campos.append("confirmacao_resolucao = %s")
         valores.append(CONFIRMACAO_PENDENTE)
-        campos.append("prazo_confirmacao = ?")
+        campos.append("prazo_confirmacao = %s")
         valores.append(para_texto(agora() + timedelta(minutes=CONFIRMACAO_MINUTOS)))
     valores.append(chamado_id)
 
-    db.execute(f"UPDATE hotelaria_chamados SET {', '.join(campos)} WHERE id = ?", valores)
+    db.execute(f"UPDATE hotelaria_chamados SET {', '.join(campos)} WHERE id = %s", valores)
     db.commit()
     return jsonify(_chamado_completo_dict(chamado_id))
 
@@ -483,7 +483,7 @@ def api_marcar_lido(chamado_id):
     _buscar_chamado_ou_404(chamado_id)
     db = get_db()
     db.execute(
-        "UPDATE hotelaria_mensagens SET lida_central = 1 WHERE chamado_id = ? AND remetente = 'paciente' AND lida_central = 0",
+        "UPDATE hotelaria_mensagens SET lida_central = 1 WHERE chamado_id = %s AND remetente = 'paciente' AND lida_central = 0",
         (chamado_id,),
     )
     db.commit()
@@ -531,7 +531,7 @@ def api_dashboard_resumo():
     # hotelaria/historico.js) e precisa dela.
     ids_filtrados = [c["id"] for c in linhas]
     if ids_filtrados:
-        marcadores = ",".join("?" for _ in ids_filtrados)
+        marcadores = ",".join("%s" for _ in ids_filtrados)
         avaliacoes = db.execute(
             f"SELECT * FROM hotelaria_avaliacoes WHERE chamado_id IN ({marcadores})", ids_filtrados
         ).fetchall()
@@ -577,7 +577,7 @@ def api_dashboard_resumo():
     datas_24h = []
     if request.args.get("periodo") == "hoje":
         clausulas_24h, params_24h = _construir_filtros_dashboard(request.args, ignorar_periodo=True)
-        clausulas_24h.append("criado_em >= ?")
+        clausulas_24h.append("criado_em >= %s")
         params_24h.append(para_texto(inicio_janela_24h()))
         datas_24h = [parse_dt(r["criado_em"]) for r in db.execute(
             "SELECT criado_em FROM hotelaria_chamados WHERE " + " AND ".join(clausulas_24h), params_24h
@@ -597,11 +597,11 @@ def api_dashboard_resumo():
     if janela_anterior is not None:
         inicio_anterior, fim_anterior = janela_anterior
         clausulas_ant, params_ant = _construir_filtros_dashboard(request.args, ignorar_periodo=True)
-        clausulas_ant = clausulas_ant + ["criado_em >= ?", "criado_em < ?"]
+        clausulas_ant = clausulas_ant + ["criado_em >= %s", "criado_em < %s"]
         params_ant = params_ant + [para_texto(inicio_anterior), para_texto(fim_anterior)]
         total_anterior = db.execute(
-            "SELECT COUNT(*) FROM hotelaria_chamados WHERE " + " AND ".join(clausulas_ant), params_ant
-        ).fetchone()[0]
+            "SELECT COUNT(*) AS total FROM hotelaria_chamados WHERE " + " AND ".join(clausulas_ant), params_ant
+        ).fetchone()["total"]
         if total_anterior > 0:
             delta_percentual = round(((total - total_anterior) / total_anterior) * 100, 1)
         else:
@@ -641,14 +641,14 @@ def _verificar_confirmacoes_expiradas(app):
         try:
             agora_texto = para_texto(agora())
             linhas = conn.execute(
-                "SELECT id FROM hotelaria_chamados WHERE status = ? AND confirmacao_resolucao = ? "
-                "AND prazo_confirmacao IS NOT NULL AND prazo_confirmacao <= ?",
+                "SELECT id FROM hotelaria_chamados WHERE status = %s AND confirmacao_resolucao = %s "
+                "AND prazo_confirmacao IS NOT NULL AND prazo_confirmacao <= %s",
                 (STATUS_FINALIZADO, CONFIRMACAO_PENDENTE, agora_texto),
             ).fetchall()
             if linhas:
                 ids = [r["id"] for r in linhas]
                 conn.executemany(
-                    "UPDATE hotelaria_chamados SET confirmacao_resolucao = ? WHERE id = ?",
+                    "UPDATE hotelaria_chamados SET confirmacao_resolucao = %s WHERE id = %s",
                     [(CONFIRMACAO_EXPIRADA, i) for i in ids],
                 )
                 conn.commit()

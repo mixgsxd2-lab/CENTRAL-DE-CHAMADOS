@@ -13,7 +13,7 @@ Flask**:
 | **Central de Hotelaria** (sistema já existente, preservado) | `hotelaria_pages`, `hotelaria_api` | `/hotelaria`, `/hotelaria/api` | Solicitações não clínicas: acomodação, alimentação, lavanderia, manutenção, higienização |
 | **Portal** | `portal` | `/` | Tela inicial com as 2 entradas administrativas (Admin Enfermagem / Admin Hotelaria) |
 
-Eles compartilham apenas o processo e o arquivo de banco de dados — cada um
+Eles compartilham apenas o processo e o banco de dados MySQL — cada um
 tem suas próprias tabelas, rotas e telas. A única ponte entre os dois é a
 categoria **"Outros"** do fluxo de paciente da Enfermagem, que cria o
 chamado diretamente na Hotelaria (ver seção *Encaminhamento "Outros" →
@@ -32,22 +32,17 @@ de subir a aplicação — veja `MYSQL_HOST`/`MYSQL_PORT`/`MYSQL_USER`/
 `MYSQL_PASSWORD`/`MYSQL_DATABASE` em `config.py`. Com `docker compose up`,
 um MySQL já é criado automaticamente (ver `docker-compose.yaml`). A
 aplicação sobe em `http://localhost:5000` (porta configurável via
-variável de ambiente `PORT`). Não há passo de "criar banco" separado além
-de ter o servidor MySQL em pé: na primeira execução, `db.py` cria o banco
-(se não existir) e todas as tabelas automaticamente. Quem já tinha dados
-no SQLite antigo (`hospital_rio_grande.db`) pode copiá-los para o MySQL
-com `python migrar_sqlite_para_mysql.py`.
+variável de ambiente `PORT`). O banco (`MYSQL_DATABASE`) precisa existir
+no servidor; na primeira execução, `db.py` cria todas as tabelas
+automaticamente.
 
 ## Arquitetura técnica
 
 - **Flask puro + PyMySQL — sem ORM.** Não há Flask-SQLAlchemy nem
   Flask-SocketIO no projeto final. Essa foi uma decisão deliberada: a
   prioridade do projeto era ter um sistema **realmente testado e
-  verificado**, não apenas escrito, com o mínimo de dependências. O
-  projeto usou SQLite puro originalmente (adequado a um único hospital
-  rodando em uma máquina local) e migrou para MySQL para suportar
-  múltiplas instâncias/réplicas da aplicação apontando para o mesmo
-  banco, servido pela rede.
+  verificado**, não apenas escrito, com o mínimo de dependências. As
+  consultas são SQL escrito à mão, com `%s` como marcador de parâmetro.
 - **Atualização em tempo real via polling**, não WebSocket. Cada tela
   (central de enfermagem, tela de acompanhamento do paciente, chat da
   hotelaria) busca o estado atual a cada 4–5 segundos.
@@ -58,7 +53,7 @@ com `python migrar_sqlite_para_mysql.py`.
   WebSocket).
 - **Sem ORM, mas com uma camada fina de modelo.** `enfermagem/models.py`
   define `ChamadoEnfermagem`, uma classe leve que envolve uma linha do
-  banco (`db.Row`) e expõe os campos de data já convertidos em `datetime` —
+  banco (dicionário do `DictCursor`) e expõe os campos de data já convertidos em `datetime` —
   o suficiente para o restante do código (`priority.py`,
   `serializers.py`) trabalhar com atributos normais, sem reimplementar um
   ORM completo.
@@ -72,11 +67,10 @@ com `python migrar_sqlite_para_mysql.py`.
 O requisito de suportar múltiplos pacientes e administradores
 simultaneamente sem duplicar ou perder chamados foi resolvido com:
 
-1. O MySQL/InnoDB já suporta leitores e gravadores concorrentes de várias
-   conexões/processos nativamente (ao contrário do SQLite, que exigia
-   `PRAGMA journal_mode=WAL` para isso).
+1. O MySQL/InnoDB suporta leitores e gravadores concorrentes de várias
+   conexões/processos nativamente.
 2. **Transições de status atômicas**: "assumir" e "finalizar" um chamado
-   são feitos com `UPDATE ... WHERE id = ? AND status = ?` e checagem de
+   são feitos com `UPDATE ... WHERE id = %s AND status = %s` e checagem de
    `cursor.rowcount`. Se dois profissionais tentarem assumir o mesmo
    chamado ao mesmo tempo, apenas um `UPDATE` afeta uma linha — o outro
    recebe `rowcount == 0` e a API responde `409 Conflito`, sem duplicar

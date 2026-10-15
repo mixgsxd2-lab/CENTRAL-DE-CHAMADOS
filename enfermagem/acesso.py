@@ -66,14 +66,14 @@ def obter_token():
     """Token dos QR Codes — criado uma única vez e nunca trocado (trocar o
     token invalidaria todos os QR Codes impressos)."""
     db = get_db()
-    row = db.execute("SELECT valor FROM enfermagem_config WHERE chave = ?", (CHAVE_TOKEN,)).fetchone()
+    row = db.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,)).fetchone()
     if row is not None:
         return row["valor"]
 
     token = secrets.token_urlsafe(24)
-    db.execute("INSERT IGNORE INTO enfermagem_config (chave, valor) VALUES (?, ?)", (CHAVE_TOKEN, token))
+    db.execute("INSERT IGNORE INTO enfermagem_config (chave, valor) VALUES (%s, %s)", (CHAVE_TOKEN, token))
     db.commit()
-    return db.execute("SELECT valor FROM enfermagem_config WHERE chave = ?", (CHAVE_TOKEN,)).fetchone()["valor"]
+    return db.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,)).fetchone()["valor"]
 
 
 def token_valido(token):
@@ -84,13 +84,13 @@ def token_valido(token):
 # Revogações
 # ---------------------------------------------------------------------------
 def _expirado_todos_em(db):
-    row = db.execute("SELECT valor FROM enfermagem_config WHERE chave = ?", (CHAVE_EXPIRADO_TODOS,)).fetchone()
+    row = db.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_EXPIRADO_TODOS,)).fetchone()
     return _dt(row["valor"]) if row else None
 
 
 def _linha_leito(db, andar, leito):
     return db.execute(
-        "SELECT ultimo_acesso_em, expirado_em FROM enfermagem_acesso_leitos WHERE andar = ? AND leito = ?",
+        "SELECT ultimo_acesso_em, expirado_em FROM enfermagem_acesso_leitos WHERE andar = %s AND leito = %s",
         (andar, leito),
     ).fetchone()
 
@@ -111,7 +111,7 @@ def expirar_leito(andar, leito):
         return False
     db = get_db()
     db.execute(
-        "INSERT INTO enfermagem_acesso_leitos (andar, leito, expirado_em) VALUES (?, ?, ?) "
+        "INSERT INTO enfermagem_acesso_leitos (andar, leito, expirado_em) VALUES (%s, %s, %s) "
         "ON DUPLICATE KEY UPDATE expirado_em = VALUES(expirado_em)",
         (andar, leito, _texto(agora())),
     )
@@ -122,7 +122,7 @@ def expirar_leito(andar, leito):
 def expirar_todos():
     db = get_db()
     db.execute(
-        "INSERT INTO enfermagem_config (chave, valor) VALUES (?, ?) "
+        "INSERT INTO enfermagem_config (chave, valor) VALUES (%s, %s) "
         "ON DUPLICATE KEY UPDATE valor = VALUES(valor)",
         (CHAVE_EXPIRADO_TODOS, _texto(agora())),
     )
@@ -138,7 +138,7 @@ def conceder_acesso(andar, leito):
     session[SESSAO_ACESSO] = {"andar": andar, "leito": leito, "desde": _texto(momento)}
     db = get_db()
     db.execute(
-        "INSERT INTO enfermagem_acesso_leitos (andar, leito, ultimo_acesso_em) VALUES (?, ?, ?) "
+        "INSERT INTO enfermagem_acesso_leitos (andar, leito, ultimo_acesso_em) VALUES (%s, %s, %s) "
         "ON DUPLICATE KEY UPDATE ultimo_acesso_em = VALUES(ultimo_acesso_em)",
         (andar, leito, _texto(momento)),
     )
@@ -183,7 +183,7 @@ def status_leitos():
     liberados = {}
     for row in db.execute(
         "SELECT andar, leito, ultimo_acesso_em, expirado_em FROM enfermagem_acesso_leitos "
-        "WHERE ultimo_acesso_em >= ?",
+        "WHERE ultimo_acesso_em >= %s",
         (_texto(inicio_do_dia(momento)),),
     ):
         desde = _dt(row["ultimo_acesso_em"])

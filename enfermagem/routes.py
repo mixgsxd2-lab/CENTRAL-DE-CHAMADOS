@@ -101,7 +101,7 @@ def acompanhar_hotelaria(chamado_id):
     "Outros") — vive aqui, na área do paciente da Enfermagem, no lugar da
     antiga tela /hotelaria/paciente."""
     db = get_db()
-    row = db.execute("SELECT id FROM hotelaria_chamados WHERE id = ?", (chamado_id,)).fetchone()
+    row = db.execute("SELECT id FROM hotelaria_chamados WHERE id = %s", (chamado_id,)).fetchone()
     if row is None:
         abort(404, description="Chamado não encontrado.")
     return _sem_cache(render_template("enfermagem/acompanhar_hotelaria.html", chamado_id=chamado_id))
@@ -111,7 +111,7 @@ def acompanhar_hotelaria(chamado_id):
 @acesso_paciente_requerido
 def acompanhar(chamado_id):
     db = get_db()
-    row = db.execute("SELECT id FROM enfermagem_chamados WHERE id = ?", (chamado_id,)).fetchone()
+    row = db.execute("SELECT id FROM enfermagem_chamados WHERE id = %s", (chamado_id,)).fetchone()
     if row is None:
         abort(404, description="Chamado não encontrado.")
     return _sem_cache(render_template("enfermagem/acompanhar.html", chamado_id=chamado_id))

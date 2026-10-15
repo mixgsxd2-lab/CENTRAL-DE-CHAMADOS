@@ -25,7 +25,7 @@ def _chamado_duplicado_recente(leito, servico, descricao):
     limite = para_texto(agora() - timedelta(seconds=JANELA_DEDUPLICACAO_SEGUNDOS))
     return db.execute(
         """SELECT * FROM hotelaria_chamados
-           WHERE leito = ? AND servico = ? AND descricao = ? AND status = ? AND criado_em >= ?
+           WHERE leito = %s AND servico = %s AND descricao = %s AND status = %s AND criado_em >= %s
            ORDER BY criado_em DESC LIMIT 1""",
         (leito, servico, descricao, STATUS_PENDENTE, limite),
     ).fetchone()
@@ -49,10 +49,10 @@ def criar_chamado_hotelaria(leito, servico, descricao, origem="hotelaria", andar
     cur = db.execute(
         """INSERT INTO hotelaria_chamados
            (leito, servico, descricao, status, origem, criado_em, confirmacao_resolucao, andar)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
         (leito, servico, descricao, STATUS_PENDENTE, origem, para_texto(agora()), CONFIRMACAO_NA, andar),
     )
     db.commit()
 
-    row = db.execute("SELECT * FROM hotelaria_chamados WHERE id = ?", (cur.lastrowid,)).fetchone()
+    row = db.execute("SELECT * FROM hotelaria_chamados WHERE id = %s", (cur.lastrowid,)).fetchone()
     return chamado_to_dict(row)

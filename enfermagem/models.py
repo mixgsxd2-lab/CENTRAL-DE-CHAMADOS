@@ -2,7 +2,7 @@
 """Representação em memória de um chamado de Enfermagem.
 
 Não é um ORM — é apenas um wrapper leve em volta de uma linha do banco
-(ver `db.Row`), convertendo os campos de data/hora de texto para
+(dicionário do `DictCursor`), convertendo os campos de data/hora de texto para
 `datetime` uma única vez. Feito assim (em vez de usar a linha crua
 diretamente em todo o código) para que o motor de prioridade e os
 serializadores leiam `chamado.categoria`, `chamado.criado_em` etc. com

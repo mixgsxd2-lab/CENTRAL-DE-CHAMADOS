@@ -17,19 +17,19 @@ FUSO = ZoneInfo("America/Fortaleza")
 
 def agora():
     """Horário oficial do sistema, sem tzinfo (mais simples de gravar e
-    comparar no SQLite, que não guarda fuso horário)."""
+    comparar no banco, sem fuso horário)."""
     return datetime.now(FUSO).replace(tzinfo=None)
 
 
 def para_texto(dt):
-    """Converte um datetime para texto ISO, para gravar no SQLite."""
+    """Converte um datetime para texto ISO, para gravar no MySQL."""
     if dt is None:
         return None
     return dt.isoformat(sep=" ", timespec="seconds")
 
 
 def parse_dt(texto):
-    """Converte o texto ISO gravado no SQLite de volta para datetime."""
+    """Converte o texto ISO gravado no MySQL de volta para datetime."""
     if not texto:
         return None
     return datetime.fromisoformat(texto)

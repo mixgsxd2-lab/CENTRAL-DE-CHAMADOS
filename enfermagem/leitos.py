@@ -61,10 +61,10 @@ def definir_status_leito(andar, leito, ativo):
         return False
     db = get_db()
     if ativo:
-        db.execute("DELETE FROM enfermagem_leitos_inativos WHERE andar = ? AND leito = ?", (andar, leito))
+        db.execute("DELETE FROM enfermagem_leitos_inativos WHERE andar = %s AND leito = %s", (andar, leito))
     else:
         db.execute(
-            "INSERT IGNORE INTO enfermagem_leitos_inativos (andar, leito, desde) VALUES (?, ?, ?)",
+            "INSERT IGNORE INTO enfermagem_leitos_inativos (andar, leito, desde) VALUES (%s, %s, %s)",
             (andar, leito, para_texto(agora())),
         )
     db.commit()

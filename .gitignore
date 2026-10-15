@@ -8,11 +8,4 @@ __pycache__/
 
 .env
 
-# Arquivo SQLite legado (pré-migração para MySQL) — mantido só como fonte
-# para migrar_sqlite_para_mysql.py, nunca deve ser commitado.
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-
 .DS_Store

@@ -11,7 +11,7 @@ services:
     volumes:
       - chamador-mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-troque-esta-senha-root}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-Hrg@12345}"]
       interval: 10s
       timeout: 5s
       retries: 10

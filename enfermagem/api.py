@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""API JSON da Central de Chamados — SQLite puro (sem ORM).
+"""API JSON da Central de Chamados — MySQL (sem ORM).
 
 Concorrência: as transições de status (`assumir`, `finalizar`) usam
 `UPDATE ... WHERE status = <status esperado>`. Se dois profissionais
@@ -7,9 +7,8 @@ tentarem assumir o mesmo chamado ao mesmo tempo, apenas o primeiro UPDATE
 afeta uma linha (`cursor.rowcount`); o segundo recebe HTTP 409 com uma
 mensagem clara — a regra vive no banco, não apenas no JavaScript, e
 continua válida mesmo com vários administradores em dispositivos
-diferentes ao mesmo tempo. `PRAGMA journal_mode=WAL` (ver db.py) permite
-que essas escritas convivam com as leituras constantes da Central e da TV
-sem bloqueios.
+diferentes ao mesmo tempo. O InnoDB do MySQL permite que essas escritas
+convivam com as leituras constantes da Central e da TV sem bloqueios.
 """
 from datetime import datetime
 
@@ -63,7 +62,7 @@ def _row_para_chamado(row):
 
 def _buscar_ou_404(chamado_id):
     db = get_db()
-    row = db.execute("SELECT * FROM enfermagem_chamados WHERE id = ?", (chamado_id,)).fetchone()
+    row = db.execute("SELECT * FROM enfermagem_chamados WHERE id = %s", (chamado_id,)).fetchone()
     if row is None:
         abort(404, description="Chamado não encontrado.")
     return _row_para_chamado(row)
@@ -84,7 +83,7 @@ def _construir_filtros(args, ignorar_periodo=False):
     q = (args.get("q") or "").strip()
 
     if status:
-        clausulas.append("status = ?")
+        clausulas.append("status = %s")
         params.append(status)
     elif args.get("status_ativos"):
         # Central de Enfermagem: só quem ainda precisa de ação (finalizados
@@ -92,19 +91,19 @@ def _construir_filtros(args, ignorar_periodo=False):
         # foi passado.
         clausulas.append(f"status IN ('{STATUS_PENDENTE}', '{STATUS_EM_ATENDIMENTO}')")
     if andar:
-        clausulas.append("andar = ?")
+        clausulas.append("andar = %s")
         params.append(andar)
     if leito:
         # Busca parcial (antes era comparação exata — bastava faltar um
         # dígito para o filtro não achar nada).
-        clausulas.append("leito LIKE ?")
+        clausulas.append("leito LIKE %s")
         params.append(f"%{leito}%")
     if categoria:
-        clausulas.append("categoria = ?")
+        clausulas.append("categoria = %s")
         params.append(categoria)
     if q:
         termo = f"%{q}%"
-        clausulas.append("(leito LIKE ? OR categoria LIKE ? OR subcategoria LIKE ? OR detalhe LIKE ?)")
+        clausulas.append("(leito LIKE %s OR categoria LIKE %s OR subcategoria LIKE %s OR detalhe LIKE %s)")
         params.extend([termo, termo, termo, termo])
 
     if not ignorar_periodo:
@@ -114,13 +113,13 @@ def _construir_filtros(args, ignorar_periodo=False):
         if periodo:
             limite = limite_periodo(periodo)
             if limite is not None:
-                clausulas.append("criado_em >= ?")
+                clausulas.append("criado_em >= %s")
                 params.append(para_texto(limite))
         if data_inicio:
-            clausulas.append("criado_em >= ?")
+            clausulas.append("criado_em >= %s")
             params.append(f"{data_inicio} 00:00:00")
         if data_fim:
-            clausulas.append("criado_em <= ?")
+            clausulas.append("criado_em <= %s")
             params.append(f"{data_fim} 23:59:59")
 
     return clausulas, params
@@ -184,7 +183,7 @@ def _chamado_ativo_no_leito(andar, leito):
     db = get_db()
     row = db.execute(
         """SELECT * FROM enfermagem_chamados
-           WHERE andar = ? AND leito = ? AND status IN (?, ?)
+           WHERE andar = %s AND leito = %s AND status IN (%s, %s)
            ORDER BY criado_em DESC LIMIT 1""",
         (andar, leito, STATUS_PENDENTE, STATUS_EM_ATENDIMENTO),
     ).fetchone()
@@ -253,7 +252,7 @@ def criar_chamado():
     cur = db.execute(
         """INSERT INTO enfermagem_chamados
            (andar, leito, categoria, subcategoria, detalhe, gravidade_base, status, criado_em)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
         (andar, leito, categoria, subcategoria, detalhe, gravidade, STATUS_PENDENTE, texto_agora),
     )
     db.commit()
@@ -284,17 +283,17 @@ def listar_chamados():
         # Busca o conjunto filtrado inteiro (limitado ao teto de segurança),
         # calcula prioridade, filtra, e só então pagina em memória. No
         # volume real de um único hospital isso é sempre barato.
-        linhas = db.execute(sql_base + " ORDER BY criado_em DESC LIMIT ?", params + [LIMITE_SEGURANCA_LISTAGEM]).fetchall()
+        linhas = db.execute(sql_base + " ORDER BY criado_em DESC LIMIT %s", params + [LIMITE_SEGURANCA_LISTAGEM]).fetchall()
         chamados = [_row_para_chamado(r) for r in linhas]
         serializados = [c for c in _preparar_lista(chamados, ordenar) if c["prioridade"] == prioridade]
         total = len(serializados)
         if limite:
             serializados = serializados[offset:offset + limite]
     else:
-        total = db.execute(f"SELECT COUNT(*) FROM ({sql_base}) AS contagem", params).fetchone()[0]
+        total = db.execute(f"SELECT COUNT(*) AS total FROM ({sql_base}) AS contagem", params).fetchone()["total"]
         limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
         linhas = db.execute(
-            sql_base + " ORDER BY criado_em DESC LIMIT ? OFFSET ?", params + [limite_sql, offset]
+            sql_base + " ORDER BY criado_em DESC LIMIT %s OFFSET %s", params + [limite_sql, offset]
         ).fetchall()
         chamados = [_row_para_chamado(r) for r in linhas]
         serializados = _preparar_lista(chamados, ordenar)
@@ -315,14 +314,14 @@ def detalhe_chamado(chamado_id):
 # ---------------------------------------------------------------------------
 def _transicao_atomica(chamado_id, status_esperado, novo_status, campos_extra):
     db = get_db()
-    colunas = ["status = ?"]
+    colunas = ["status = %s"]
     valores = [novo_status]
     for coluna, valor in campos_extra.items():
-        colunas.append(f"{coluna} = ?")
+        colunas.append(f"{coluna} = %s")
         valores.append(valor)
     valores.extend([chamado_id, status_esperado])
 
-    sql = f"UPDATE enfermagem_chamados SET {', '.join(colunas)} WHERE id = ? AND status = ?"
+    sql = f"UPDATE enfermagem_chamados SET {', '.join(colunas)} WHERE id = %s AND status = %s"
     cur = db.execute(sql, valores)
     db.commit()
     return cur.rowcount > 0
@@ -399,8 +398,8 @@ def avaliar_chamado(chamado_id):
 
     db = get_db()
     cur = db.execute(
-        "UPDATE enfermagem_chamados SET avaliacao = ?, comentario_avaliacao = ? "
-        "WHERE id = ? AND status = 'finalizado' AND avaliacao IS NULL",
+        "UPDATE enfermagem_chamados SET avaliacao = %s, comentario_avaliacao = %s "
+        "WHERE id = %s AND status = 'finalizado' AND avaliacao IS NULL",
         (nota, comentario, chamado_id),
     )
     db.commit()
@@ -429,7 +428,7 @@ def dashboard_tv():
     hoje_texto = para_texto(hoje)
 
     linhas_finalizados = db.execute(
-        "SELECT * FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= ? "
+        "SELECT * FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= %s "
         "ORDER BY finalizado_em DESC LIMIT 8",
         (hoje_texto,),
     ).fetchall()
@@ -437,12 +436,12 @@ def dashboard_tv():
     ultimos_finalizados = _preparar_lista(finalizados_hoje)
 
     total_hoje = db.execute(
-        "SELECT COUNT(*) FROM enfermagem_chamados WHERE criado_em >= ?", (hoje_texto,)
-    ).fetchone()[0]
+        "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE criado_em >= %s", (hoje_texto,)
+    ).fetchone()["total"]
     total_finalizados_hoje = db.execute(
-        "SELECT COUNT(*) FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= ?",
+        "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= %s",
         (hoje_texto,),
-    ).fetchone()[0]
+    ).fetchone()["total"]
 
     contagem_prioridade = {"critica": 0, "media": 0, "baixa": 0}
     for c in fila:
@@ -481,7 +480,7 @@ def _serie_periodo(db, args, chamados):
     datas_24h = []
     if args.get("periodo") == "hoje":
         clausulas, params = _construir_filtros(args, ignorar_periodo=True)
-        clausulas.append("criado_em >= ?")
+        clausulas.append("criado_em >= %s")
         params.append(para_texto(inicio_janela_24h()))
         prioridade = args.get("prioridade")
         for r in db.execute(
@@ -578,11 +577,11 @@ def metricas():
     if janela_anterior is not None:
         inicio_anterior, fim_anterior = janela_anterior
         clausulas_ant, params_ant = _construir_filtros(request.args, ignorar_periodo=True)
-        clausulas_ant = clausulas_ant + ["criado_em >= ?", "criado_em < ?"]
+        clausulas_ant = clausulas_ant + ["criado_em >= %s", "criado_em < %s"]
         params_ant = params_ant + [para_texto(inicio_anterior), para_texto(fim_anterior)]
         total_anterior = db.execute(
-            "SELECT COUNT(*) FROM enfermagem_chamados WHERE " + " AND ".join(clausulas_ant), params_ant
-        ).fetchone()[0]
+            "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE " + " AND ".join(clausulas_ant), params_ant
+        ).fetchone()["total"]
         if total_anterior > 0:
             delta_percentual = round(((total - total_anterior) / total_anterior) * 100, 1)
         else:

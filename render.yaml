@@ -6,8 +6,7 @@
 #      O Render lê este arquivo e cria o serviço sozinho.
 #
 # IMPORTANTE — banco de dados (MySQL):
-#   O banco não é mais um arquivo local (SQLite) — é um MySQL acessado
-#   pela rede. Este serviço web não provisiona o MySQL: crie um banco
+#   O banco é um MySQL acessado pela rede. Este serviço web não provisiona o MySQL: crie um banco
 #   gerenciado (Render "New -> MySQL" não existe nativamente; use um
 #   add-on externo, ex. PlanetScale/Aiven/RDS, ou um segundo serviço
 #   Docker com a imagem `mysql`) e defina MYSQL_HOST / MYSQL_PORT /
