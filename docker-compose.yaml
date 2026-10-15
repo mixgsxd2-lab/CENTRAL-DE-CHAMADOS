@@ -1,14 +1,37 @@
 # Teste local da imagem que será publicada no ECR/EKS:
 #   docker compose up --build   ->  http://localhost:8005
 services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Hrg@12345}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hospital_rio_grande}
+      MYSQL_USER: ${MYSQL_USER:-chamados}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chamados}
+    volumes:
+      - chamador-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-troque-esta-senha-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   chamador:
     build: .
     image: chamador-enfermagem:latest
     ports:
       - "8005:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
       PORT: "8000"
-      DATABASE_PATH: /data/hospital_rio_grande.db
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hospital_rio_grande}
+      MYSQL_USER: ${MYSQL_USER:-chamados}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chamados}
       FLASK_DEBUG: "0"
       SECRET_KEY: ${SECRET_KEY:-troque-esta-chave-local}
       SESSION_COOKIE_SECURE: "1"   # "1" apenas atrás de HTTPS
@@ -17,8 +40,6 @@ services:
       HOTELARIA_SENHA: ${HOTELARIA_SENHA:-12345}
       ENFERMAGEM_USUARIO: ${ENFERMAGEM_USUARIO:-enfermagem}
       ENFERMAGEM_SENHA: ${ENFERMAGEM_SENHA:-12345}
-    volumes:
-      - chamador-data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz',timeout=3)"]
       interval: 30s
@@ -27,4 +48,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  chamador-data:
+  chamador-mysql:

@@ -11,7 +11,7 @@ Cada sistema tem seu próprio conjunto de tabelas e rotas — a única coisa
 que compartilham é o processo/porta e, quando o paciente escolhe "OUTROS"
 na Central de Chamados, uma chamada de função interna que cria o
 chamado diretamente na Hotelaria (ver hotelaria/services.py). Toda a
-persistência é SQLite puro (biblioteca padrão, sem ORM) e a atualização em
+persistência é MySQL via PyMySQL (sem ORM — ver db.py) e a atualização em
 tempo real é feita por polling — o mesmo padrão comprovado do projeto
 original, sem depender de bibliotecas externas de WebSocket.
 """

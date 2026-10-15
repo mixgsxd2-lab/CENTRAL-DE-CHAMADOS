@@ -71,7 +71,7 @@ def obter_token():
         return row["valor"]
 
     token = secrets.token_urlsafe(24)
-    db.execute("INSERT OR IGNORE INTO enfermagem_config (chave, valor) VALUES (?, ?)", (CHAVE_TOKEN, token))
+    db.execute("INSERT IGNORE INTO enfermagem_config (chave, valor) VALUES (?, ?)", (CHAVE_TOKEN, token))
     db.commit()
     return db.execute("SELECT valor FROM enfermagem_config WHERE chave = ?", (CHAVE_TOKEN,)).fetchone()["valor"]
 
@@ -112,7 +112,7 @@ def expirar_leito(andar, leito):
     db = get_db()
     db.execute(
         "INSERT INTO enfermagem_acesso_leitos (andar, leito, expirado_em) VALUES (?, ?, ?) "
-        "ON CONFLICT(andar, leito) DO UPDATE SET expirado_em = excluded.expirado_em",
+        "ON DUPLICATE KEY UPDATE expirado_em = VALUES(expirado_em)",
         (andar, leito, _texto(agora())),
     )
     db.commit()
@@ -123,7 +123,7 @@ def expirar_todos():
     db = get_db()
     db.execute(
         "INSERT INTO enfermagem_config (chave, valor) VALUES (?, ?) "
-        "ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor",
+        "ON DUPLICATE KEY UPDATE valor = VALUES(valor)",
         (CHAVE_EXPIRADO_TODOS, _texto(agora())),
     )
     db.commit()
@@ -139,7 +139,7 @@ def conceder_acesso(andar, leito):
     db = get_db()
     db.execute(
         "INSERT INTO enfermagem_acesso_leitos (andar, leito, ultimo_acesso_em) VALUES (?, ?, ?) "
-        "ON CONFLICT(andar, leito) DO UPDATE SET ultimo_acesso_em = excluded.ultimo_acesso_em",
+        "ON DUPLICATE KEY UPDATE ultimo_acesso_em = VALUES(ultimo_acesso_em)",
         (andar, leito, _texto(momento)),
     )
     db.commit()

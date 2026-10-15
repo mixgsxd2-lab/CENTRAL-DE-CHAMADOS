@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """Representação em memória de um chamado de Enfermagem.
 
-Não é um ORM — é apenas um wrapper leve em volta de uma linha do SQLite
-(sqlite3.Row), convertendo os campos de data/hora de texto para `datetime`
-uma única vez. Feito assim (em vez de usar `sqlite3.Row` diretamente em
-todo o código) para que o motor de prioridade e os serializadores leiam
-`chamado.categoria`, `chamado.criado_em` etc. com atributos normais, sem
-espalhar `row["..."]` e `parse_dt(...)` por toda parte.
+Não é um ORM — é apenas um wrapper leve em volta de uma linha do banco
+(ver `db.Row`), convertendo os campos de data/hora de texto para
+`datetime` uma única vez. Feito assim (em vez de usar a linha crua
+diretamente em todo o código) para que o motor de prioridade e os
+serializadores leiam `chamado.categoria`, `chamado.criado_em` etc. com
+atributos normais, sem espalhar `row["..."]` e `parse_dt(...)` por toda
+parte.
 """
 from timeutils import parse_dt, agora
 

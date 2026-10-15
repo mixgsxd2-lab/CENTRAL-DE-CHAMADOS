@@ -5,15 +5,15 @@
 #   2. No Render, clique em "New" -> "Blueprint" e aponte para o repositório.
 #      O Render lê este arquivo e cria o serviço sozinho.
 #
-# IMPORTANTE — banco de dados (SQLite) no plano Free:
-#   Sem disco persistente (recurso pago, Starter ou superior), o arquivo
-#   .db vive no sistema de arquivos efêmero do próprio serviço — ou seja,
-#   TODO CHAMADO CRIADO É PERDIDO sempre que o Render reinicia a instância
-#   (acontece com frequência no Free: after um período sem tráfego, a cada
-#   novo deploy, etc.). Adequado só para testar/demonstrar o site, nunca
-#   para uso real de um hospital. Para persistir os dados de verdade,
-#   volte a adicionar um bloco `disk` (montado em, por ex., /var/data) e a
-#   variável DATABASE_PATH apontando para dentro dele — exige plano pago.
+# IMPORTANTE — banco de dados (MySQL):
+#   O banco não é mais um arquivo local (SQLite) — é um MySQL acessado
+#   pela rede. Este serviço web não provisiona o MySQL: crie um banco
+#   gerenciado (Render "New -> MySQL" não existe nativamente; use um
+#   add-on externo, ex. PlanetScale/Aiven/RDS, ou um segundo serviço
+#   Docker com a imagem `mysql`) e defina MYSQL_HOST / MYSQL_PORT /
+#   MYSQL_DATABASE / MYSQL_USER / MYSQL_PASSWORD nas variáveis de
+#   ambiente abaixo (os três primeiros podem ir direto aqui; usuário e
+#   senha, como "secret" no painel do Render).
 services:
   - type: web
     name: hospital-rio-grande
@@ -41,6 +41,16 @@ services:
         generateValue: true
       - key: SESSION_COOKIE_SECURE
         value: "1"
+      - key: MYSQL_HOST
+        sync: false   # preencha no painel com o host do seu MySQL gerenciado
+      - key: MYSQL_PORT
+        value: "3306"
+      - key: MYSQL_DATABASE
+        value: hospital_rio_grande
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
       - key: HOTELARIA_USUARIO
         value: admin
       - key: HOTELARIA_SENHA

@@ -416,7 +416,7 @@ def api_listar_chamados():
 
     limite = request.args.get("limite", type=int)
     offset = request.args.get("offset", type=int) or 0
-    total = db.execute(f"SELECT COUNT(*) FROM ({sql})", params).fetchone()[0]
+    total = db.execute(f"SELECT COUNT(*) FROM ({sql}) AS contagem", params).fetchone()[0]
     limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
     linhas = db.execute(
         sql + f" ORDER BY {ordem_sql} LIMIT ? OFFSET ?", params + [limite_sql, offset]

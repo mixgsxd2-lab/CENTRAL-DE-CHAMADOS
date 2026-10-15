@@ -14,9 +14,15 @@ def _env_bool(nome, padrao=False):
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "hospital-rio-grande-chave-dev")
 
-    DATABASE_PATH = os.environ.get(
-        "DATABASE_PATH", os.path.join(BASE_DIR, "hospital_rio_grande.db")
-    )
+    # Conexão com o MySQL (ver db.py). Em desenvolvimento local, um MySQL
+    # padrão em localhost com estas credenciais já funciona (ex.:
+    # `docker compose up mysql`); em produção, defina todas via variável
+    # de ambiente.
+    MYSQL_HOST = os.environ.get("MYSQL_HOST", "localhost")
+    MYSQL_PORT = int(os.environ.get("MYSQL_PORT", "3306"))
+    MYSQL_USER = os.environ.get("MYSQL_USER", "chamados")
+    MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "chamados")
+    MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "hospital_rio_grande")
 
     # (Configuração de JSON — acentos legíveis e ordem das categorias
     # preservada — é feita em app.py via `app.json`, API do Flask 3.x.)

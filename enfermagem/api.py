@@ -291,7 +291,7 @@ def listar_chamados():
         if limite:
             serializados = serializados[offset:offset + limite]
     else:
-        total = db.execute(f"SELECT COUNT(*) FROM ({sql_base})", params).fetchone()[0]
+        total = db.execute(f"SELECT COUNT(*) FROM ({sql_base}) AS contagem", params).fetchone()[0]
         limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
         linhas = db.execute(
             sql_base + " ORDER BY criado_em DESC LIMIT ? OFFSET ?", params + [limite_sql, offset]

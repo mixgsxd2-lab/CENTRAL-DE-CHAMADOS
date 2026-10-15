@@ -396,14 +396,13 @@ def acrescentar_ativos(conn):
 
 if __name__ == "__main__":
     import sys
-    import sqlite3
 
     from config import Config
-    from db import SCHEMA
+    from db import SCHEMA, Conexao, _config_mysql
 
-    conexao = sqlite3.connect(Config.DATABASE_PATH, timeout=15)
-    conexao.execute("PRAGMA journal_mode = WAL")
+    conexao = Conexao(**_config_mysql(vars(Config)))
     conexao.executescript(SCHEMA)
+    conexao.commit()
     if "--ativos" in sys.argv:
         acrescentar_ativos(conexao)
         print("Novo lote de chamados ativos acrescentado.")
