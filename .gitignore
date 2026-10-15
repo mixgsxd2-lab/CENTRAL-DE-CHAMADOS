@@ -8,4 +8,6 @@ __pycache__/
 
 .env
 
+RELATORIO_SEGURANCA_E_STACK.md
+
 .DS_Store

@@ -40,19 +40,9 @@ from hotelaria.services import criar_chamado_hotelaria
 
 api_bp = Blueprint("enfermagem_api", __name__, url_prefix="/api/enfermagem")
 
-# Limites de tamanho de texto livre — nenhuma tela pede mais que isso, e
-# barra abuso/payloads gigantes (mitigação barata, ver auditoria de
-# segurança). Espelhados em `maxlength` no frontend.
 MAX_DETALHE = 280
 MAX_COMENTARIO = 300
-
-# Teto de segurança para listagens sem paginação explícita — protege o
-# servidor (e o navegador, que teria que desenhar tudo) de um crescimento
-# ilimitado do histórico ao longo dos anos. Não se aplica a `metricas`, que
-# precisa do conjunto completo filtrado para calcular totais corretos.
 LIMITE_SEGURANCA_LISTAGEM = 500
-
-# Ordem das faixas na fila da Central (ver `_preparar_lista`).
 ORDEM_FAIXA = {"critica": 0, "media": 1, "baixa": 2}
 
 
@@ -62,17 +52,15 @@ def _row_para_chamado(row):
 
 def _buscar_ou_404(chamado_id):
     db = get_db()
-    row = db.execute("SELECT * FROM enfermagem_chamados WHERE id = %s", (chamado_id,)).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM enfermagem_chamados WHERE id = %s", (chamado_id,))
+        row = cursor.fetchone()
     if row is None:
         abort(404, description="Chamado não encontrado.")
     return _row_para_chamado(row)
 
 
 def _construir_filtros(args, ignorar_periodo=False):
-    """Monta a lista de cláusulas SQL (sem o `WHERE`) e os parâmetros a
-    partir dos query params compartilhados por `listar_chamados` e
-    `metricas` — evita manter duas cópias quase idênticas do mesmo bloco de
-    filtros (como havia antes)."""
     clausulas = []
     params = []
 
@@ -86,16 +74,11 @@ def _construir_filtros(args, ignorar_periodo=False):
         clausulas.append("status = %s")
         params.append(status)
     elif args.get("status_ativos"):
-        # Central de Enfermagem: só quem ainda precisa de ação (finalizados
-        # ficam apenas no Histórico). Ignorado quando um `status` explícito
-        # foi passado.
         clausulas.append(f"status IN ('{STATUS_PENDENTE}', '{STATUS_EM_ATENDIMENTO}')")
     if andar:
         clausulas.append("andar = %s")
         params.append(andar)
     if leito:
-        # Busca parcial (antes era comparação exata — bastava faltar um
-        # dígito para o filtro não achar nada).
         clausulas.append("leito LIKE %s")
         params.append(f"%{leito}%")
     if categoria:
@@ -126,21 +109,10 @@ def _construir_filtros(args, ignorar_periodo=False):
 
 
 def _serializar_lista(chamados):
-    """Serializa sem se preocupar com ordenação (usado nas métricas, onde a
-    ordem não importa)."""
     return [chamado_to_dict(c) for c in chamados]
 
 
 def _preparar_lista(chamados, ordenar="prioridade"):
-    """Ordena e serializa uma lista de chamados. `ordenar`:
-      - "prioridade" (padrão): ativos primeiro — agrupados por faixa
-        (Crítico → Médio → Baixo) e, dentro de cada faixa, quem está
-        esperando há mais tempo primeiro; finalizados depois (finalizados
-        mais recentemente primeiro);
-      - "recentes"/"antigos": por data de criação, ignorando status.
-    A ordenação é sempre feita sobre objetos com datetime real, nunca sobre
-    texto já formatado. A prioridade de cada chamado é calculada uma única
-    vez e reaproveitada tanto para ordenar quanto para serializar."""
     pares = [(c, calcular_prioridade(c)) for c in chamados]
 
     if ordenar == "recentes":
@@ -170,23 +142,16 @@ def _preparar_lista(chamados, ordenar="prioridade"):
     return resultado
 
 
-# ---------------------------------------------------------------------------
-# Criação e consulta
-# ---------------------------------------------------------------------------
 def _chamado_ativo_no_leito(andar, leito):
-    """Regra "um chamado por vez": enquanto o leito já tiver um chamado
-    pendente ou em atendimento (qualquer categoria), uma nova tentativa de
-    abrir chamado não cria um segundo — devolve o chamado já em aberto. Além
-    de refletir o pedido do hospital (evita o mesmo leito acumular vários
-    chamados simultâneos), isso também cobre o caso de duplo-clique/retry de
-    rede que antes só era tratado dentro de uma janela de alguns segundos."""
     db = get_db()
-    row = db.execute(
-        """SELECT * FROM enfermagem_chamados
-           WHERE andar = %s AND leito = %s AND status IN (%s, %s)
-           ORDER BY criado_em DESC LIMIT 1""",
-        (andar, leito, STATUS_PENDENTE, STATUS_EM_ATENDIMENTO),
-    ).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute(
+            """SELECT * FROM enfermagem_chamados
+               WHERE andar = %s AND leito = %s AND status IN (%s, %s)
+               ORDER BY criado_em DESC LIMIT 1""",
+            (andar, leito, STATUS_PENDENTE, STATUS_EM_ATENDIMENTO),
+        )
+        row = cursor.fetchone()
     return _row_para_chamado(row)
 
 
@@ -203,7 +168,6 @@ def criar_chamado():
 
     if not leito_valido(andar, leito):
         return jsonify({"erro": "Andar ou leito inválido."}), 400
-    # Só o leito cujo QR Code foi escaneado (ver enfermagem/acesso.py).
     if (andar, leito) != (g.acesso_paciente["andar"], g.acesso_paciente["leito"]):
         return jsonify({"erro": "Escaneie o QR Code do seu leito para abrir um chamado."}), 403
     if not leito_ativo(andar, leito):
@@ -215,16 +179,11 @@ def criar_chamado():
     if detalhe and len(detalhe) > MAX_DETALHE:
         return jsonify({"erro": f"Detalhe muito longo (máx. {MAX_DETALHE} caracteres)."}), 400
 
-    # Categoria "Outros": NÃO entra na fila de enfermagem — é encaminhada
-    # imediatamente para a Central de Hotelaria (especificação, item 5).
     if categoria == CATEGORIA_OUTROS:
         servico = servico_hotelaria_da_opcao(subcategoria)
         if not servico:
             return jsonify({"erro": "Não foi possível encaminhar esta solicitação."}), 400
 
-        # O andar/leito e a origem ("enfermagem") já vão como campos próprios
-        # para `criar_chamado_hotelaria` — não precisam ser repetidos dentro
-        # do texto da descrição, que fica só com a solicitação em si.
         descricao = subcategoria
         if detalhe:
             descricao += f" — {detalhe}"
@@ -249,15 +208,17 @@ def criar_chamado():
     texto_agora = para_texto(agora())
 
     db = get_db()
-    cur = db.execute(
-        """INSERT INTO enfermagem_chamados
-           (andar, leito, categoria, subcategoria, detalhe, gravidade_base, status, criado_em)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-        (andar, leito, categoria, subcategoria, detalhe, gravidade, STATUS_PENDENTE, texto_agora),
-    )
+    with db.cursor() as cursor:
+        cursor.execute(
+            """INSERT INTO enfermagem_chamados
+               (andar, leito, categoria, subcategoria, detalhe, gravidade_base, status, criado_em)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (andar, leito, categoria, subcategoria, detalhe, gravidade, STATUS_PENDENTE, texto_agora),
+        )
+        chamado_id = cursor.lastrowid
     db.commit()
 
-    chamado = _buscar_ou_404(cur.lastrowid)
+    chamado = _buscar_ou_404(chamado_id)
     payload = chamado_to_dict(chamado)
     payload["encaminhado_hotelaria"] = False
     return jsonify(payload), 201
@@ -277,26 +238,25 @@ def listar_chamados():
     limite = request.args.get("limite", type=int)
     offset = request.args.get("offset", type=int) or 0
 
-    if prioridade:
-        # A prioridade é calculada dinamicamente (não é coluna do banco) —
-        # não dá para filtrar por ela em SQL nem paginar antes de calculá-la.
-        # Busca o conjunto filtrado inteiro (limitado ao teto de segurança),
-        # calcula prioridade, filtra, e só então pagina em memória. No
-        # volume real de um único hospital isso é sempre barato.
-        linhas = db.execute(sql_base + " ORDER BY criado_em DESC LIMIT %s", params + [LIMITE_SEGURANCA_LISTAGEM]).fetchall()
-        chamados = [_row_para_chamado(r) for r in linhas]
-        serializados = [c for c in _preparar_lista(chamados, ordenar) if c["prioridade"] == prioridade]
-        total = len(serializados)
-        if limite:
-            serializados = serializados[offset:offset + limite]
-    else:
-        total = db.execute(f"SELECT COUNT(*) AS total FROM ({sql_base}) AS contagem", params).fetchone()["total"]
-        limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
-        linhas = db.execute(
-            sql_base + " ORDER BY criado_em DESC LIMIT %s OFFSET %s", params + [limite_sql, offset]
-        ).fetchall()
-        chamados = [_row_para_chamado(r) for r in linhas]
-        serializados = _preparar_lista(chamados, ordenar)
+    with db.cursor() as cursor:
+        if prioridade:
+            cursor.execute(sql_base + " ORDER BY criado_em DESC LIMIT %s", params + [LIMITE_SEGURANCA_LISTAGEM])
+            linhas = cursor.fetchall()
+            chamados = [_row_para_chamado(r) for r in linhas]
+            serializados = [c for c in _preparar_lista(chamados, ordenar) if c["prioridade"] == prioridade]
+            total = len(serializados)
+            if limite:
+                serializados = serializados[offset:offset + limite]
+        else:
+            cursor.execute(f"SELECT COUNT(*) AS total FROM ({sql_base}) AS contagem", params)
+            total = cursor.fetchone()["total"]
+            limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
+            cursor.execute(
+                sql_base + " ORDER BY criado_em DESC LIMIT %s OFFSET %s", params + [limite_sql, offset]
+            )
+            linhas = cursor.fetchall()
+            chamados = [_row_para_chamado(r) for r in linhas]
+            serializados = _preparar_lista(chamados, ordenar)
 
     resposta = jsonify(serializados)
     resposta.headers["X-Total-Count"] = str(total)
@@ -309,9 +269,6 @@ def detalhe_chamado(chamado_id):
     return jsonify(chamado_to_dict(chamado))
 
 
-# ---------------------------------------------------------------------------
-# Transições de status
-# ---------------------------------------------------------------------------
 def _transicao_atomica(chamado_id, status_esperado, novo_status, campos_extra):
     db = get_db()
     colunas = ["status = %s"]
@@ -322,9 +279,11 @@ def _transicao_atomica(chamado_id, status_esperado, novo_status, campos_extra):
     valores.extend([chamado_id, status_esperado])
 
     sql = f"UPDATE enfermagem_chamados SET {', '.join(colunas)} WHERE id = %s AND status = %s"
-    cur = db.execute(sql, valores)
+    with db.cursor() as cursor:
+        cursor.execute(sql, valores)
+        rowcount = cursor.rowcount
     db.commit()
-    return cur.rowcount > 0
+    return rowcount > 0
 
 
 @api_bp.route("/chamados/<int:chamado_id>/assumir", methods=["POST"])
@@ -334,10 +293,6 @@ def assumir_chamado(chamado_id):
     if chamado.status != STATUS_PENDENTE:
         return jsonify({"erro": "Este chamado já foi assumido por outro profissional ou não está mais pendente."}), 409
 
-    # O responsável é sempre o usuário autenticado na sessão — não um nome
-    # digitado livremente. Além de tirar uma etapa/campo da interface (o
-    # nome não é mais mostrado em nenhuma tela), evita responsáveis
-    # inventados/em branco e vincula a ação a quem de fato está logado.
     profissional = session.get("enfermagem_usuario") or "Equipe de Enfermagem"
 
     ok = _transicao_atomica(
@@ -397,51 +352,52 @@ def avaliar_chamado(chamado_id):
         return jsonify({"erro": f"Comentário muito longo (máx. {MAX_COMENTARIO} caracteres)."}), 400
 
     db = get_db()
-    cur = db.execute(
-        "UPDATE enfermagem_chamados SET avaliacao = %s, comentario_avaliacao = %s "
-        "WHERE id = %s AND status = 'finalizado' AND avaliacao IS NULL",
-        (nota, comentario, chamado_id),
-    )
+    with db.cursor() as cursor:
+        cursor.execute(
+            "UPDATE enfermagem_chamados SET avaliacao = %s, comentario_avaliacao = %s "
+            "WHERE id = %s AND status = 'finalizado' AND avaliacao IS NULL",
+            (nota, comentario, chamado_id),
+        )
+        rowcount = cursor.rowcount
     db.commit()
-    if cur.rowcount == 0:
+    if rowcount == 0:
         return jsonify({"erro": "Este chamado já foi avaliado."}), 409
 
     chamado = _buscar_ou_404(chamado_id)
     return jsonify(chamado_to_dict(chamado))
 
 
-# ---------------------------------------------------------------------------
-# Dashboard da TV / painel "Atenção imediata" (endpoint único, já agregado,
-# para minimizar round-trips na Central e nos cartões de status)
-# ---------------------------------------------------------------------------
 @api_bp.route("/tv", methods=["GET"])
 @login_requerido
 def dashboard_tv():
     db = get_db()
-    linhas_ativas = db.execute(
-        "SELECT * FROM enfermagem_chamados WHERE status IN ('pendente', 'em_atendimento')"
-    ).fetchall()
-    ativos = [_row_para_chamado(r) for r in linhas_ativas]
-    fila = _preparar_lista(ativos)
-
     hoje = agora().replace(hour=0, minute=0, second=0, microsecond=0)
     hoje_texto = para_texto(hoje)
 
-    linhas_finalizados = db.execute(
-        "SELECT * FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= %s "
-        "ORDER BY finalizado_em DESC LIMIT 8",
-        (hoje_texto,),
-    ).fetchall()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM enfermagem_chamados WHERE status IN ('pendente', 'em_atendimento')")
+        linhas_ativas = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT * FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= %s "
+            "ORDER BY finalizado_em DESC LIMIT 8",
+            (hoje_texto,),
+        )
+        linhas_finalizados = cursor.fetchall()
+
+        cursor.execute("SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE criado_em >= %s", (hoje_texto,))
+        total_hoje = cursor.fetchone()["total"]
+
+        cursor.execute(
+            "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= %s",
+            (hoje_texto,),
+        )
+        total_finalizados_hoje = cursor.fetchone()["total"]
+
+    ativos = [_row_para_chamado(r) for r in linhas_ativas]
+    fila = _preparar_lista(ativos)
     finalizados_hoje = [_row_para_chamado(r) for r in linhas_finalizados]
     ultimos_finalizados = _preparar_lista(finalizados_hoje)
-
-    total_hoje = db.execute(
-        "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE criado_em >= %s", (hoje_texto,)
-    ).fetchone()["total"]
-    total_finalizados_hoje = db.execute(
-        "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE status = 'finalizado' AND finalizado_em >= %s",
-        (hoje_texto,),
-    ).fetchone()["total"]
 
     contagem_prioridade = {"critica": 0, "media": 0, "baixa": 0}
     for c in fila:
@@ -462,30 +418,25 @@ def dashboard_tv():
             "finalizados_hoje": total_finalizados_hoje,
         },
         "por_prioridade": contagem_prioridade,
-        # "Atenção imediata": os chamados que mais precisam de ação agora —
-        # críticos e/ou já acima do tempo esperado, na ordem de prioridade
-        # que a fila já usa. Reaproveita a mesma lista já calculada acima
-        # (nenhuma consulta nova ao banco).
         "atencao_imediata": [c for c in fila if c["prioridade"] == "critica" or c["acima_do_tempo_esperado"]][:6],
     })
 
 
-# ---------------------------------------------------------------------------
-# Métricas / histórico / dashboard
-# ---------------------------------------------------------------------------
 def _serie_periodo(db, args, chamados):
-    """Série do gráfico "Chamados por período" (ver timeutils.serie_periodo).
-    Para "Hoje", busca as últimas 24h com os mesmos filtros, exceto o
-    período (a janela de 24h pode começar antes da meia-noite)."""
     datas_24h = []
     if args.get("periodo") == "hoje":
         clausulas, params = _construir_filtros(args, ignorar_periodo=True)
         clausulas.append("criado_em >= %s")
         params.append(para_texto(inicio_janela_24h()))
         prioridade = args.get("prioridade")
-        for r in db.execute(
-            "SELECT criado_em, gravidade_base, categoria FROM enfermagem_chamados WHERE " + " AND ".join(clausulas), params
-        ).fetchall():
+        with db.cursor() as cursor:
+            cursor.execute(
+                "SELECT criado_em, gravidade_base, categoria FROM enfermagem_chamados WHERE " + " AND ".join(clausulas),
+                params,
+            )
+            linhas = cursor.fetchall()
+
+        for r in linhas:
             if prioridade and _tier(r["gravidade_base"], r["categoria"]) != prioridade:
                 continue
             datas_24h.append(datetime.fromisoformat(r["criado_em"]))
@@ -504,13 +455,13 @@ def metricas():
     if clausulas:
         sql += " WHERE " + " AND ".join(clausulas)
 
-    linhas = db.execute(sql, params).fetchall()
+    with db.cursor() as cursor:
+        cursor.execute(sql, params)
+        linhas = cursor.fetchall()
+
     chamados = [_row_para_chamado(r) for r in linhas]
     serializados = _serializar_lista(chamados)
 
-    # O filtro de prioridade precisa ser aplicado depois da serialização —
-    # assim como em `listar_chamados` — porque a prioridade é calculada
-    # dinamicamente (não é uma coluna do banco).
     prioridade = request.args.get("prioridade")
     if prioridade:
         serializados = [c for c in serializados if c["prioridade"] == prioridade]
@@ -541,9 +492,6 @@ def metricas():
         por_prioridade[c["prioridade"]] = por_prioridade.get(c["prioridade"], 0) + 1
         por_andar[c["andar"]] = por_andar.get(c["andar"], 0) + 1
 
-    # Chamados por andar, já separados por faixa de prioridade (gráfico
-    # "Chamados por andar" do Dashboard). Todos os andares aparecem, mesmo
-    # com zero, para a comparação entre eles ficar estável.
     por_andar_prioridade = {
         nome: {"critica": 0, "media": 0, "baixa": 0}
         for nome in ANDARES if not request.args.get("andar") or nome == request.args.get("andar")
@@ -566,11 +514,6 @@ def metricas():
             "tempo_espera_min": duracao_minutos(c.criado_em, agora()),
         }
 
-    # Comparativo com a janela equivalente imediatamente anterior — só
-    # calculado quando existe um atalho de período reconhecido (ver
-    # timeutils.janela_comparativa_anterior); sem isso, não há uma base de
-    # comparação clara, e o comparativo fica None (o frontend simplesmente
-    # não mostra o selo de tendência).
     comparativo = None
     periodo = request.args.get("periodo")
     janela_anterior = janela_comparativa_anterior(periodo) if periodo else None
@@ -579,9 +522,11 @@ def metricas():
         clausulas_ant, params_ant = _construir_filtros(request.args, ignorar_periodo=True)
         clausulas_ant = clausulas_ant + ["criado_em >= %s", "criado_em < %s"]
         params_ant = params_ant + [para_texto(inicio_anterior), para_texto(fim_anterior)]
-        total_anterior = db.execute(
-            "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE " + " AND ".join(clausulas_ant), params_ant
-        ).fetchone()["total"]
+        with db.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) AS total FROM enfermagem_chamados WHERE " + " AND ".join(clausulas_ant), params_ant
+            )
+            total_anterior = cursor.fetchone()["total"]
         if total_anterior > 0:
             delta_percentual = round(((total - total_anterior) / total_anterior) * 100, 1)
         else:
@@ -614,8 +559,6 @@ def metricas():
 
 @api_bp.route("/opcoes", methods=["GET"])
 def opcoes():
-    """Metadados fixos (andares/leitos e categorias/subopções), para o
-    front-end montar a interface sem duplicar essas listas em JS."""
     categorias_json = {
         nome: {
             "cor": dados["cor"],
@@ -631,8 +574,6 @@ def opcoes():
 @api_bp.route("/leitos", methods=["GET"])
 @login_requerido
 def listar_leitos_admin():
-    """Todos os leitos com status ativo/inativo — usado pela tela
-    Configurações → Controle de Leitos."""
     return jsonify({"andares": listar_leitos()})
 
 
@@ -649,9 +590,6 @@ def definir_status_leito_admin():
     return jsonify({"andar": andar, "leito": leito, "ativo": ativo})
 
 
-# ---------------------------------------------------------------------------
-# Acesso da tela do Paciente (QR Code) — Configurações
-# ---------------------------------------------------------------------------
 def _url_acesso_paciente(token, andar=None, leito=None):
     params = {"acesso": token}
     if andar and leito:
@@ -662,9 +600,6 @@ def _url_acesso_paciente(token, andar=None, leito=None):
 @api_bp.route("/acesso", methods=["GET"])
 @login_requerido
 def acesso_paciente_info():
-    """Link/QR Code de acesso — genérico (card principal de Configurações)
-    ou, com `?andar=&leito=`, já apontando para um leito específico (ver
-    "Gerador de QR Code por Leito")."""
     andar = (request.args.get("andar") or "").strip()
     leito = (request.args.get("leito") or "").strip()
     if andar and leito and not leito_valido(andar, leito):
@@ -674,10 +609,6 @@ def acesso_paciente_info():
 
 @api_bp.route("/acesso/status", methods=["GET"])
 def acesso_paciente_status():
-    """Consultado periodicamente pelas telas do paciente: assim que passa da
-    meia-noite ou a Central expira o acesso, a tela troca para "Acesso
-    expirado" sem o paciente precisar recarregar. `segundos_restantes` vem
-    do relógio do servidor (o do celular pode estar errado)."""
     acesso = acesso_atual()
     if acesso is None:
         resposta = jsonify({"valido": False})
@@ -691,8 +622,6 @@ def acesso_paciente_status():
 @api_bp.route("/acesso/leitos", methods=["GET"])
 @login_requerido
 def acesso_leitos():
-    """Leitos por andar + quais estão com acesso liberado hoje + segundos
-    até o reset da meia-noite (cartão "Acesso pelo QR Code" de Configurações)."""
     liberados = status_leitos()
     andares = [
         {
@@ -712,8 +641,6 @@ def acesso_leitos():
 @api_bp.route("/acesso/expirar", methods=["POST"])
 @login_requerido
 def expirar_acesso_leito():
-    """Derruba na hora o acesso de quem escaneou o QR Code deste leito. Quem
-    escanear de novo entra, mas só até a mesma meia-noite."""
     dados = request.get_json(silent=True) or {}
     andar = (dados.get("andar") or "").strip()
     leito = (dados.get("leito") or "").strip()

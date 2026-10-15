@@ -12,9 +12,10 @@ from timeutils import agora, para_texto
 
 
 def _inativos(db):
-    return {(row["andar"], row["leito"]) for row in db.execute(
-        "SELECT andar, leito FROM enfermagem_leitos_inativos"
-    )}
+    with db.cursor() as cursor:
+        cursor.execute("SELECT andar, leito FROM enfermagem_leitos_inativos")
+        linhas = cursor.fetchall()
+    return {(row["andar"], row["leito"]) for row in linhas}
 
 
 def listar_leitos():
@@ -60,12 +61,13 @@ def definir_status_leito(andar, leito, ativo):
     if andar not in ANDARES or leito not in ANDARES[andar]:
         return False
     db = get_db()
-    if ativo:
-        db.execute("DELETE FROM enfermagem_leitos_inativos WHERE andar = %s AND leito = %s", (andar, leito))
-    else:
-        db.execute(
-            "INSERT IGNORE INTO enfermagem_leitos_inativos (andar, leito, desde) VALUES (%s, %s, %s)",
-            (andar, leito, para_texto(agora())),
-        )
+    with db.cursor() as cursor:
+        if ativo:
+            cursor.execute("DELETE FROM enfermagem_leitos_inativos WHERE andar = %s AND leito = %s", (andar, leito))
+        else:
+            cursor.execute(
+                "INSERT IGNORE INTO enfermagem_leitos_inativos (andar, leito, desde) VALUES (%s, %s, %s)",
+                (andar, leito, para_texto(agora())),
+            )
     db.commit()
     return True

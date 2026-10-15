@@ -170,7 +170,9 @@ def historico():
 # ---------------------------------------------------------------------------
 def _buscar_chamado_ou_404(chamado_id):
     db = get_db()
-    row = db.execute("SELECT * FROM hotelaria_chamados WHERE id = %s", (chamado_id,)).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM hotelaria_chamados WHERE id = %s", (chamado_id,))
+        row = cursor.fetchone()
     if row is None:
         abort(404, description="Chamado não encontrado.")
     return row
@@ -178,24 +180,24 @@ def _buscar_chamado_ou_404(chamado_id):
 
 def _mensagens_do_chamado(chamado_id):
     db = get_db()
-    linhas = db.execute(
-        "SELECT * FROM hotelaria_mensagens WHERE chamado_id = %s ORDER BY criado_em ASC, id ASC",
-        (chamado_id,),
-    ).fetchall()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM hotelaria_mensagens WHERE chamado_id = %s ORDER BY criado_em ASC, id ASC", (chamado_id,))
+        linhas = cursor.fetchall()
     return [mensagem_to_dict(r) for r in linhas]
 
 
 def _avaliacao_do_chamado(chamado_id):
     db = get_db()
-    return db.execute("SELECT * FROM hotelaria_avaliacoes WHERE chamado_id = %s", (chamado_id,)).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM hotelaria_avaliacoes WHERE chamado_id = %s", (chamado_id,))
+    return cursor.fetchone()
 
 
 def _tem_mensagem_nao_lida(chamado_id):
     db = get_db()
-    row = db.execute(
-        "SELECT COUNT(*) AS total FROM hotelaria_mensagens WHERE chamado_id = %s AND remetente = 'paciente' AND lida_central = 0",
-        (chamado_id,),
-    ).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) AS total FROM hotelaria_mensagens WHERE chamado_id = %s AND remetente = 'paciente' AND lida_central = 0", (chamado_id,))
+    row = cursor.fetchone()
     return row["total"] > 0
 
 
@@ -239,9 +241,9 @@ def api_obter_chamado(chamado_id):
 @hotelaria_api.route("/chamados/leito/<leito>", methods=["GET"])
 def api_chamados_por_leito(leito):
     db = get_db()
-    linhas = db.execute(
-        "SELECT * FROM hotelaria_chamados WHERE leito = %s ORDER BY criado_em DESC LIMIT 20", (leito,)
-    ).fetchall()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM hotelaria_chamados WHERE leito = %s ORDER BY criado_em DESC LIMIT 20", (leito,))
+    linhas = cursor.fetchall()
     return jsonify([chamado_to_dict(r) for r in linhas])
 
 
@@ -262,10 +264,11 @@ def api_enviar_mensagem(chamado_id):
         return jsonify({"erro": "Este chamado foi finalizado e não aceita novas mensagens."}), 409
 
     db = get_db()
-    db.execute(
-        "INSERT INTO hotelaria_mensagens (chamado_id, remetente, mensagem, criado_em, lida_central) VALUES (%s, %s, %s, %s, %s)",
-        (chamado_id, remetente, texto, para_texto(agora()), 1 if remetente == "central" else 0),
-    )
+    with db.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO hotelaria_mensagens (chamado_id, remetente, mensagem, criado_em, lida_central) VALUES (%s, %s, %s, %s, %s)",
+            (chamado_id, remetente, texto, para_texto(agora()), 1 if remetente == "central" else 0),
+        )
     db.commit()
     return jsonify(_chamado_completo_dict(chamado_id)), 201
 
@@ -283,7 +286,8 @@ def api_confirmar_resolucao(chamado_id):
 
     novo_valor = CONFIRMACAO_RESOLVIDO if resolvido else CONFIRMACAO_NAO_RESOLVIDO
     db = get_db()
-    db.execute("UPDATE hotelaria_chamados SET confirmacao_resolucao = %s WHERE id = %s", (novo_valor, chamado_id))
+    with db.cursor() as cursor:
+        cursor.execute("UPDATE hotelaria_chamados SET confirmacao_resolucao = %s WHERE id = %s", (novo_valor, chamado_id))
     db.commit()
     return jsonify(_chamado_completo_dict(chamado_id))
 
@@ -307,12 +311,15 @@ def api_criar_avaliacao(chamado_id):
     if _avaliacao_do_chamado(chamado_id) is not None:
         return jsonify({"erro": "Este chamado já foi avaliado."}), 400
 
-    cur = db.execute(
-        "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (%s, %s, %s, %s)",
-        (chamado_id, estrelas, comentario, para_texto(agora())),
-    )
+    with db.cursor() as cursor:
+        cur = cursor.execute(
+             "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (%s, %s, %s, %s)",
+            (chamado_id, estrelas, comentario, para_texto(agora())),
+        )
     db.commit()
-    nova = db.execute("SELECT * FROM hotelaria_avaliacoes WHERE id = %s", (cur.lastrowid,)).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM hotelaria_avaliacoes WHERE id = %s", (cur.lastrowid,))
+        nova = cursor.fetchone()
     return jsonify(avaliacao_to_dict(nova)), 201
 
 
@@ -328,9 +335,9 @@ def api_central_resumo():
     acima da meta de espera (30 min), setor mais requisitado hoje e
     finalizados hoje."""
     db = get_db()
-    ativos = db.execute(
-        f"SELECT * FROM hotelaria_chamados WHERE status IN ('{STATUS_PENDENTE}', '{STATUS_ANDAMENTO}')"
-    ).fetchall()
+    with db.cursor() as cursor:
+        cursor.execute(f"SELECT * FROM hotelaria_chamados WHERE status IN ('{STATUS_PENDENTE}', '{STATUS_ANDAMENTO}')")
+        ativos = cursor.fetchall()
     pendentes = sum(1 for c in ativos if c["status"] == STATUS_PENDENTE)
     andamento = sum(1 for c in ativos if c["status"] == STATUS_ANDAMENTO)
     # Chamados ativos que passaram da meta de 30 min para serem assumidos
@@ -338,19 +345,23 @@ def api_central_resumo():
     acima_do_tempo = sum(1 for c in ativos if chamado_to_dict(c)["acima_do_tempo_esperado"])
 
     hoje_texto = para_texto(agora().replace(hour=0, minute=0, second=0, microsecond=0))
-    finalizados_hoje = db.execute(
-        "SELECT COUNT(*) AS total FROM hotelaria_chamados WHERE status = %s AND finalizado_em >= %s",
-        (STATUS_FINALIZADO, hoje_texto),
-    ).fetchone()["total"]
+    with db.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) AS total FROM hotelaria_chamados WHERE status = %s AND finalizado_em >= %s",
+            (STATUS_FINALIZADO, hoje_texto),
+        )
+        finalizados_hoje=cursor.fetchone()["total"]
 
     # "outros" não é um serviço de hotelaria de fato (ver por_servico em
     # api_dashboard_resumo) — não entra na disputa por "mais requisitado".
-    linha_top = db.execute(
-        """SELECT servico, COUNT(*) as total FROM hotelaria_chamados
-           WHERE criado_em >= %s AND servico != 'outros'
-           GROUP BY servico ORDER BY total DESC LIMIT 1""",
-        (hoje_texto,),
-    ).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute(
+            """SELECT servico, COUNT(*) as total FROM hotelaria_chamados
+            WHERE criado_em >= %s AND servico != 'outros'
+            GROUP BY servico ORDER BY total DESC LIMIT 1""",
+            (hoje_texto,)
+        )
+        linha_top = cursor.fetchone()
     setor_mais_requisitado_hoje = SERVICOS[linha_top["servico"]]["nome"] if linha_top else None
 
     return jsonify({
@@ -416,11 +427,13 @@ def api_listar_chamados():
 
     limite = request.args.get("limite", type=int)
     offset = request.args.get("offset", type=int) or 0
-    total = db.execute(f"SELECT COUNT(*) AS total FROM ({sql}) AS contagem", params).fetchone()["total"]
+    with db.cursor() as cursor:
+        cursor.execute(f"SELECT COUNT(*) AS total FROM ({sql}) AS contagem", params)
+        total = cursor.fetchone()["total"]
     limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
-    linhas = db.execute(
-        sql + f" ORDER BY {ordem_sql} LIMIT %s OFFSET %s", params + [limite_sql, offset]
-    ).fetchall()
+    with db.cursor() as cursor:
+        cursor.execute( sql + f" ORDER BY {ordem_sql} LIMIT %s OFFSET %s", params + [limite_sql, offset])
+        linhas = cursor.fetchall()
 
     resultado = []
     for row in linhas:
@@ -439,10 +452,11 @@ def api_assumir_chamado(chamado_id):
     row = _buscar_chamado_ou_404(chamado_id)
     if row["status"] == STATUS_PENDENTE:
         db = get_db()
-        db.execute(
-            "UPDATE hotelaria_chamados SET status = %s, iniciado_em = %s WHERE id = %s",
-            (STATUS_ANDAMENTO, para_texto(agora()), chamado_id),
-        )
+        with db.cursor() as cursor:
+            cursor.execute(
+                "UPDATE hotelaria_chamados SET status = %s, iniciado_em = %s WHERE id = %s",
+                (STATUS_ANDAMENTO, para_texto(agora()), chamado_id)
+            )
         db.commit()
     return jsonify(_chamado_completo_dict(chamado_id))
 
@@ -472,7 +486,8 @@ def api_alterar_status(chamado_id):
         valores.append(para_texto(agora() + timedelta(minutes=CONFIRMACAO_MINUTOS)))
     valores.append(chamado_id)
 
-    db.execute(f"UPDATE hotelaria_chamados SET {', '.join(campos)} WHERE id = %s", valores)
+    with db.cursor() as cursor:
+        cursor.execute(f"UPDATE hotelaria_chamados SET {', '.join(campos)} WHERE id = %s", valores)
     db.commit()
     return jsonify(_chamado_completo_dict(chamado_id))
 
@@ -482,10 +497,8 @@ def api_alterar_status(chamado_id):
 def api_marcar_lido(chamado_id):
     _buscar_chamado_ou_404(chamado_id)
     db = get_db()
-    db.execute(
-        "UPDATE hotelaria_mensagens SET lida_central = 1 WHERE chamado_id = %s AND remetente = 'paciente' AND lida_central = 0",
-        (chamado_id,),
-    )
+    with db.cursor() as cursor:
+        cursor.execute("UPDATE hotelaria_mensagens SET lida_central = 1 WHERE chamado_id = %s AND remetente = 'paciente' AND lida_central = 0", (chamado_id,))
     db.commit()
     return jsonify(_chamado_completo_dict(chamado_id))
 
@@ -499,7 +512,9 @@ def api_dashboard_resumo():
     if clausulas:
         sql += " WHERE " + " AND ".join(clausulas)
 
-    linhas = db.execute(sql, params).fetchall()
+    with db.cursor() as cursor:
+        cursor.execute(sql, params)
+        linhas = cursor.fetchall()
     total = len(linhas)
     pendentes = sum(1 for c in linhas if c["status"] == STATUS_PENDENTE)
     andamento = sum(1 for c in linhas if c["status"] == STATUS_ANDAMENTO)
@@ -532,9 +547,9 @@ def api_dashboard_resumo():
     ids_filtrados = [c["id"] for c in linhas]
     if ids_filtrados:
         marcadores = ",".join("%s" for _ in ids_filtrados)
-        avaliacoes = db.execute(
-            f"SELECT * FROM hotelaria_avaliacoes WHERE chamado_id IN ({marcadores})", ids_filtrados
-        ).fetchall()
+        with db.cursor() as cursor:
+            cursor.execute(f"SELECT * FROM hotelaria_avaliacoes WHERE chamado_id IN ({marcadores})", ids_filtrados)
+            avaliacoes = cursor.fetchall()
     else:
         avaliacoes = []
     media_avaliacao = round(sum(a["estrelas"] for a in avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0
@@ -579,9 +594,9 @@ def api_dashboard_resumo():
         clausulas_24h, params_24h = _construir_filtros_dashboard(request.args, ignorar_periodo=True)
         clausulas_24h.append("criado_em >= %s")
         params_24h.append(para_texto(inicio_janela_24h()))
-        datas_24h = [parse_dt(r["criado_em"]) for r in db.execute(
-            "SELECT criado_em FROM hotelaria_chamados WHERE " + " AND ".join(clausulas_24h), params_24h
-        ).fetchall()]
+        with db.cursor() as cursor:
+            cursor.execute("SELECT criado_em FROM hotelaria_chamados WHERE " + " AND ".join(clausulas_24h), params_24h)
+            datas_24h = [parse_dt(r["criado_em"]) for r in cursor.fetchall()]
     serie = serie_periodo(
         request.args.get("periodo"), datas_criacao, datas_24h,
         (request.args.get("data_inicio") or "").strip(), (request.args.get("data_fim") or "").strip(),
@@ -599,9 +614,9 @@ def api_dashboard_resumo():
         clausulas_ant, params_ant = _construir_filtros_dashboard(request.args, ignorar_periodo=True)
         clausulas_ant = clausulas_ant + ["criado_em >= %s", "criado_em < %s"]
         params_ant = params_ant + [para_texto(inicio_anterior), para_texto(fim_anterior)]
-        total_anterior = db.execute(
-            "SELECT COUNT(*) AS total FROM hotelaria_chamados WHERE " + " AND ".join(clausulas_ant), params_ant
-        ).fetchone()["total"]
+        with db.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) AS total FROM hotelaria_chamados WHERE " + " AND ".join(clausulas_ant), params_ant)
+            total_anterior = cursor.fetchone()["total"]
         if total_anterior > 0:
             delta_percentual = round(((total - total_anterior) / total_anterior) * 100, 1)
         else:
@@ -640,11 +655,13 @@ def _verificar_confirmacoes_expiradas(app):
         conn = nova_conexao_standalone(app)
         try:
             agora_texto = para_texto(agora())
-            linhas = conn.execute(
-                "SELECT id FROM hotelaria_chamados WHERE status = %s AND confirmacao_resolucao = %s "
-                "AND prazo_confirmacao IS NOT NULL AND prazo_confirmacao <= %s",
-                (STATUS_FINALIZADO, CONFIRMACAO_PENDENTE, agora_texto),
-            ).fetchall()
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM hotelaria_chamados WHERE status = %s AND confirmacao_resolucao = %s "
+                    "AND prazo_confirmacao IS NOT NULL AND prazo_confirmacao <= %s",
+                    (STATUS_FINALIZADO, CONFIRMACAO_PENDENTE, agora_texto)
+                )
+                linhas = cursor.fetchall()
             if linhas:
                 ids = [r["id"] for r in linhas]
                 conn.executemany(

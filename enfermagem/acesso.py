@@ -66,14 +66,18 @@ def obter_token():
     """Token dos QR Codes — criado uma única vez e nunca trocado (trocar o
     token invalidaria todos os QR Codes impressos)."""
     db = get_db()
-    row = db.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,)).fetchone()
-    if row is not None:
-        return row["valor"]
+    with db.cursor() as cursor:
+        cursor.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,))
+        row = cursor.fetchone()
+        if row is not None:
+            return row["valor"]
 
-    token = secrets.token_urlsafe(24)
-    db.execute("INSERT IGNORE INTO enfermagem_config (chave, valor) VALUES (%s, %s)", (CHAVE_TOKEN, token))
-    db.commit()
-    return db.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,)).fetchone()["valor"]
+        token = secrets.token_urlsafe(24)
+        cursor.execute("INSERT IGNORE INTO enfermagem_config (chave, valor) VALUES (%s, %s)", (CHAVE_TOKEN, token))
+        db.commit()
+
+        cursor.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,))
+        return cursor.fetchone()["valor"]
 
 
 def token_valido(token):
@@ -84,15 +88,19 @@ def token_valido(token):
 # Revogações
 # ---------------------------------------------------------------------------
 def _expirado_todos_em(db):
-    row = db.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_EXPIRADO_TODOS,)).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_EXPIRADO_TODOS,))
+        row = cursor.fetchone()
     return _dt(row["valor"]) if row else None
 
 
 def _linha_leito(db, andar, leito):
-    return db.execute(
-        "SELECT ultimo_acesso_em, expirado_em FROM enfermagem_acesso_leitos WHERE andar = %s AND leito = %s",
-        (andar, leito),
-    ).fetchone()
+    with db.cursor() as cursor:
+        cursor.execute(
+            "SELECT ultimo_acesso_em, expirado_em FROM enfermagem_acesso_leitos WHERE andar = %s AND leito = %s",
+            (andar, leito),
+        )
+        return cursor.fetchone()
 
 
 def _liberacao_vale(desde, expirado_leito, expirado_todos, momento):
@@ -110,22 +118,24 @@ def expirar_leito(andar, leito):
     if not leito_valido(andar, leito):
         return False
     db = get_db()
-    db.execute(
-        "INSERT INTO enfermagem_acesso_leitos (andar, leito, expirado_em) VALUES (%s, %s, %s) "
-        "ON DUPLICATE KEY UPDATE expirado_em = VALUES(expirado_em)",
-        (andar, leito, _texto(agora())),
-    )
+    with db.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO enfermagem_acesso_leitos (andar, leito, expirado_em) VALUES (%s, %s, %s) "
+            "ON DUPLICATE KEY UPDATE expirado_em = VALUES(expirado_em)",
+            (andar, leito, _texto(agora())),
+        )
     db.commit()
     return True
 
 
 def expirar_todos():
     db = get_db()
-    db.execute(
-        "INSERT INTO enfermagem_config (chave, valor) VALUES (%s, %s) "
-        "ON DUPLICATE KEY UPDATE valor = VALUES(valor)",
-        (CHAVE_EXPIRADO_TODOS, _texto(agora())),
-    )
+    with db.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO enfermagem_config (chave, valor) VALUES (%s, %s) "
+            "ON DUPLICATE KEY UPDATE valor = VALUES(valor)",
+            (CHAVE_EXPIRADO_TODOS, _texto(agora())),
+        )
     db.commit()
 
 
@@ -137,11 +147,12 @@ def conceder_acesso(andar, leito):
     momento = agora()
     session[SESSAO_ACESSO] = {"andar": andar, "leito": leito, "desde": _texto(momento)}
     db = get_db()
-    db.execute(
-        "INSERT INTO enfermagem_acesso_leitos (andar, leito, ultimo_acesso_em) VALUES (%s, %s, %s) "
-        "ON DUPLICATE KEY UPDATE ultimo_acesso_em = VALUES(ultimo_acesso_em)",
-        (andar, leito, _texto(momento)),
-    )
+    with db.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO enfermagem_acesso_leitos (andar, leito, ultimo_acesso_em) VALUES (%s, %s, %s) "
+            "ON DUPLICATE KEY UPDATE ultimo_acesso_em = VALUES(ultimo_acesso_em)",
+            (andar, leito, _texto(momento)),
+        )
     db.commit()
 
 
@@ -181,11 +192,15 @@ def status_leitos():
     db = get_db()
     expirado_todos = _expirado_todos_em(db)
     liberados = {}
-    for row in db.execute(
-        "SELECT andar, leito, ultimo_acesso_em, expirado_em FROM enfermagem_acesso_leitos "
-        "WHERE ultimo_acesso_em >= %s",
-        (_texto(inicio_do_dia(momento)),),
-    ):
+    with db.cursor() as cursor:
+        cursor.execute(
+            "SELECT andar, leito, ultimo_acesso_em, expirado_em FROM enfermagem_acesso_leitos "
+            "WHERE ultimo_acesso_em >= %s",
+            (_texto(inicio_do_dia(momento)),),
+        )
+        linhas = cursor.fetchall()
+
+    for row in linhas:
         desde = _dt(row["ultimo_acesso_em"])
         if _liberacao_vale(desde, _dt(row["expirado_em"]), expirado_todos, momento):
             liberados[(row["andar"], row["leito"])] = desde.strftime("%H:%M")

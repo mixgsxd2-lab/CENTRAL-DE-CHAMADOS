@@ -20,9 +20,9 @@ class Config:
     # de ambiente.
     MYSQL_HOST = os.environ.get("MYSQL_HOST", "localhost")
     MYSQL_PORT = int(os.environ.get("MYSQL_PORT", "3306"))
-    MYSQL_USER = os.environ.get("MYSQL_USER", "chamados")
-    MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "chamados")
-    MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "hospital_rio_grande")
+    MYSQL_USER = os.environ.get("MYSQL_USER", "root")
+    MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "Hrg@12345")
+    MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "Central_Chamados")
 
     # (Configuração de JSON — acentos legíveis e ordem das categorias
     # preservada — é feita em app.py via `app.json`, API do Flask 3.x.)

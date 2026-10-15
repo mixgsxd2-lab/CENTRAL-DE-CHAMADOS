@@ -15,7 +15,6 @@ Escopo: código na revisão `1ff67d34ab2ce90329aedcaf19624ee9887991d0`, manifest
 | Aplicação | Python 3.12 | Imagem base `python:3.12-slim` |
 | Framework web | Flask 3.1.3 | Páginas, API JSON, sessão por cookie assinado |
 | Servidor HTTP | Gunicorn 23.0.0 | 1 worker e 4 threads, porta 8000 |
-| Banco de dados | SQLite | Arquivo único em `/data/hospital_rio_grande.db`, modo WAL |
 | Geração de QR Code | qrcode 8.2 | Geração de QR Codes SVG para acesso dos pacientes |
 | Fuso horário | tzdata | Suporte ao fuso `America/Fortaleza` |
 | Orquestração | Kubernetes em EKS | 1 réplica, NGINX Ingress, cert-manager, PVC EBS gp3 |
@@ -26,8 +25,6 @@ Não há ORM, autenticação corporativa, SSO, MFA de usuários da aplicação, 
 ## Recursos e dados tratados
 
 O banco contém chamadas de Enfermagem e Hotelaria. Entre os campos retornados pelas APIs estão andar, leito, categoria, subcategoria, descrição/detalhe, estado da solicitação, profissional responsável, horários, avaliação e comentários. Mesmo sem nome do paciente, a associação de leito, horário e motivo de um chamado é dado operacional sensível e pode ser dado pessoal em contexto hospitalar.
-
-O arquivo `hospital_rio_grande.db` está versionado no Git. Ele não é copiado para a imagem porque o `.dockerignore` exclui `*.db`, mas continua acessível a qualquer pessoa com leitura do repositório e preserva seu histórico no Git.
 
 ## Achados de segurança
 
