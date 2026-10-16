@@ -13,8 +13,8 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-# Usuário não-root. O banco agora é o MySQL (ver MYSQL_* em config.py),
-# acessado pela rede — não há mais volume de dados neste container.
+# Usuário não-root. O banco agora é o PostgreSQL (ver PG* em config.py),
+# acessado pela rede — não há mais volume de dados de banco neste container.
 RUN useradd --system --uid 10001 --no-create-home app \
     && chown -R app:app /app
 USER 10001

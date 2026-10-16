@@ -66,7 +66,7 @@ def definir_status_leito(andar, leito, ativo):
             cursor.execute("DELETE FROM enfermagem_leitos_inativos WHERE andar = %s AND leito = %s", (andar, leito))
         else:
             cursor.execute(
-                "INSERT IGNORE INTO enfermagem_leitos_inativos (andar, leito, desde) VALUES (%s, %s, %s)",
+                "INSERT INTO enfermagem_leitos_inativos (andar, leito, desde) VALUES (%s, %s, %s) ON CONFLICT(andar, leito) DO NOTHING",
                 (andar, leito, para_texto(agora())),
             )
     db.commit()

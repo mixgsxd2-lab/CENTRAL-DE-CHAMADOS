@@ -1,14 +1,4 @@
 # -*- coding: utf-8 -*-
-"""Central de Hotelaria — sistema já existente, portado para dentro do
-projeto unificado como um Blueprint independente (rotas e modelos
-próprios). Comportamento e fluxo preservados do projeto original: login,
-chat entre paciente e Central, confirmação de resolução em até 30 minutos,
-avaliação por estrelas. A única mudança de fundo é a camada de dados —
-trocada de SQLAlchemy para SQL direto no MySQL (mesma técnica já usada no restante
-do projeto) — e o tempo real, que passou de Socket.IO para atualização por
-polling (a cada poucos segundos), evitando uma dependência externa a mais
-sem abrir mão de um chat que "parece" instantâneo.
-"""
 import threading
 import time
 from datetime import timedelta
@@ -40,8 +30,6 @@ hotelaria_api = Blueprint("hotelaria_api", __name__, url_prefix="/hotelaria/api"
 
 CONFIRMACAO_MINUTOS = 30
 
-# Limites de texto livre e teto de segurança de listagem — mesmo racional já
-# usado na Enfermagem (ver enfermagem/api.py).
 MAX_DESCRICAO = 500
 MAX_MENSAGEM = 500
 MAX_COMENTARIO = 300
@@ -49,9 +37,6 @@ LIMITE_SEGURANCA_LISTAGEM = 500
 
 
 def _construir_filtros_dashboard(args, ignorar_periodo=False):
-    """Cláusulas SQL (sem o `WHERE`) + parâmetros compartilhados entre o
-    resumo do dashboard e (quando aplicável) seu comparativo com o período
-    anterior — evita duas cópias quase idênticas do mesmo bloco de filtros."""
     clausulas = []
     params = []
 
@@ -81,8 +66,7 @@ def _construir_filtros_dashboard(args, ignorar_periodo=False):
             if limite is not None:
                 clausulas.append("criado_em >= %s")
                 params.append(para_texto(limite))
-        # Intervalo manual (De/Até) — mesmo comportamento do Dashboard de
-        # Enfermagem.
+
         data_inicio = (args.get("data_inicio") or "").strip()
         data_fim = (args.get("data_fim") or "").strip()
         if data_inicio:
@@ -94,10 +78,6 @@ def _construir_filtros_dashboard(args, ignorar_periodo=False):
 
     return clausulas, params
 
-
-# ---------------------------------------------------------------------------
-# Autenticação (credenciais de teste, preservadas do sistema original)
-# ---------------------------------------------------------------------------
 def login_requerido(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -134,16 +114,8 @@ def logout():
     session.pop("hotelaria_usuario", None)
     return redirect(url_for("portal.inicio"))
 
-
-# ---------------------------------------------------------------------------
-# Páginas
-# ---------------------------------------------------------------------------
 @hotelaria_pages.route("/paciente")
 def paciente():
-    # A área do paciente da Hotelaria deixou de existir: o paciente usa só a
-    # área do paciente da Enfermagem (a categoria "Outros" já encaminha os
-    # pedidos para a Hotelaria). Links/QR codes antigos continuam levando a
-    # pessoa para o lugar certo em vez de dar "página não encontrada".
     return redirect(url_for("enfermagem_pages.paciente_inicio"))
 
 
@@ -164,10 +136,6 @@ def dashboard():
 def historico():
     return render_template("hotelaria/historico.html", servicos=SERVICOS, andares=list(ANDARES.keys()))
 
-
-# ---------------------------------------------------------------------------
-# Helpers de leitura
-# ---------------------------------------------------------------------------
 def _buscar_chamado_ou_404(chamado_id):
     db = get_db()
     with db.cursor() as cursor:
@@ -190,14 +158,14 @@ def _avaliacao_do_chamado(chamado_id):
     db = get_db()
     with db.cursor() as cursor:
         cursor.execute("SELECT * FROM hotelaria_avaliacoes WHERE chamado_id = %s", (chamado_id,))
-    return cursor.fetchone()
+        return cursor.fetchone()
 
 
 def _tem_mensagem_nao_lida(chamado_id):
     db = get_db()
     with db.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) AS total FROM hotelaria_mensagens WHERE chamado_id = %s AND remetente = 'paciente' AND lida_central = 0", (chamado_id,))
-    row = cursor.fetchone()
+        row = cursor.fetchone()
     return row["total"] > 0
 
 
@@ -208,10 +176,6 @@ def _chamado_completo_dict(chamado_id):
     nao_lida = any(m["remetente"] == "paciente" and not m["lida_central"] for m in mensagens)
     return chamado_to_dict(row, mensagens=mensagens, avaliacao_row=avaliacao_row, nao_lida=nao_lida)
 
-
-# ---------------------------------------------------------------------------
-# API - Paciente
-# ---------------------------------------------------------------------------
 @hotelaria_api.route("/chamados", methods=["POST"])
 def api_criar_chamado():
     dados = request.get_json(silent=True) or {}
@@ -243,7 +207,7 @@ def api_chamados_por_leito(leito):
     db = get_db()
     with db.cursor() as cursor:
         cursor.execute("SELECT * FROM hotelaria_chamados WHERE leito = %s ORDER BY criado_em DESC LIMIT 20", (leito,))
-    linhas = cursor.fetchall()
+        linhas = cursor.fetchall()
     return jsonify([chamado_to_dict(r) for r in linhas])
 
 
@@ -294,7 +258,7 @@ def api_confirmar_resolucao(chamado_id):
 
 @hotelaria_api.route("/chamados/<int:chamado_id>/avaliacao", methods=["POST"])
 def api_criar_avaliacao(chamado_id):
-    row = _buscar_chamado_ou_404(chamado_id)
+    _buscar_chamado_ou_404(chamado_id)
     dados = request.get_json(silent=True) or {}
     try:
         estrelas = int(dados.get("estrelas"))
@@ -312,36 +276,27 @@ def api_criar_avaliacao(chamado_id):
         return jsonify({"erro": "Este chamado já foi avaliado."}), 400
 
     with db.cursor() as cursor:
-        cur = cursor.execute(
-             "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (%s, %s, %s, %s)",
+        cursor.execute(
+             "INSERT INTO hotelaria_avaliacoes (chamado_id, estrelas, comentario, criado_em) VALUES (%s, %s, %s, %s) RETURNING id",
             (chamado_id, estrelas, comentario, para_texto(agora())),
         )
+        avaliacao_id = cursor.fetchone()["id"]
     db.commit()
+
     with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM hotelaria_avaliacoes WHERE id = %s", (cur.lastrowid,))
+        cursor.execute("SELECT * FROM hotelaria_avaliacoes WHERE id = %s", (avaliacao_id,))
         nova = cursor.fetchone()
     return jsonify(avaliacao_to_dict(nova)), 201
 
-
-# ---------------------------------------------------------------------------
-# API - Central
-# ---------------------------------------------------------------------------
 @hotelaria_api.route("/central/resumo", methods=["GET"])
 @login_requerido
 def api_central_resumo():
-    """Contadores em tempo real para os cartões de estatística no topo da
-    Central — mesmo papel do `/api/enfermagem/tv` da Enfermagem, mas com
-    métricas que fazem sentido para a Hotelaria: pendentes, em andamento,
-    acima da meta de espera (30 min), setor mais requisitado hoje e
-    finalizados hoje."""
     db = get_db()
     with db.cursor() as cursor:
         cursor.execute(f"SELECT * FROM hotelaria_chamados WHERE status IN ('{STATUS_PENDENTE}', '{STATUS_ANDAMENTO}')")
         ativos = cursor.fetchall()
     pendentes = sum(1 for c in ativos if c["status"] == STATUS_PENDENTE)
     andamento = sum(1 for c in ativos if c["status"] == STATUS_ANDAMENTO)
-    # Chamados ativos que passaram da meta de 30 min para serem assumidos
-    # (mesmo indicador "Acima do tempo esperado" da Central de Enfermagem).
     acima_do_tempo = sum(1 for c in ativos if chamado_to_dict(c)["acima_do_tempo_esperado"])
 
     hoje_texto = para_texto(agora().replace(hour=0, minute=0, second=0, microsecond=0))
@@ -350,10 +305,8 @@ def api_central_resumo():
             "SELECT COUNT(*) AS total FROM hotelaria_chamados WHERE status = %s AND finalizado_em >= %s",
             (STATUS_FINALIZADO, hoje_texto),
         )
-        finalizados_hoje=cursor.fetchone()["total"]
+        finalizados_hoje = cursor.fetchone()["total"]
 
-    # "outros" não é um serviço de hotelaria de fato (ver por_servico em
-    # api_dashboard_resumo) — não entra na disputa por "mais requisitado".
     with db.cursor() as cursor:
         cursor.execute(
             """SELECT servico, COUNT(*) as total FROM hotelaria_chamados
@@ -394,8 +347,6 @@ def api_listar_chamados():
         clausulas.append("status = %s")
         params.append(status)
     elif request.args.get("status_ativos"):
-        # Central: pede apenas quem ainda precisa de ação. Finalizados ficam
-        # só no Histórico. Ignorado quando `status` explícito foi passado.
         clausulas.append(f"status IN ('{STATUS_PENDENTE}', '{STATUS_ANDAMENTO}')")
     if andar:
         clausulas.append("andar = %s")
@@ -419,9 +370,6 @@ def api_listar_chamados():
     if clausulas:
         sql += " WHERE " + " AND ".join(clausulas)
 
-    # Sem faixas de prioridade/SLA na Hotelaria (ver api_central_resumo) — só
-    # há ordenação por data, ao contrário da Enfermagem (que também ordena
-    # por "prioridade").
     ordenar = request.args.get("ordenar", "recentes")
     ordem_sql = "criado_em ASC" if ordenar == "antigos" else "criado_em DESC"
 
@@ -430,9 +378,10 @@ def api_listar_chamados():
     with db.cursor() as cursor:
         cursor.execute(f"SELECT COUNT(*) AS total FROM ({sql}) AS contagem", params)
         total = cursor.fetchone()["total"]
+
     limite_sql = limite or LIMITE_SEGURANCA_LISTAGEM
     with db.cursor() as cursor:
-        cursor.execute( sql + f" ORDER BY {ordem_sql} LIMIT %s OFFSET %s", params + [limite_sql, offset])
+        cursor.execute(sql + f" ORDER BY {ordem_sql} LIMIT %s OFFSET %s", params + [limite_sql, offset])
         linhas = cursor.fetchall()
 
     resultado = []
@@ -535,15 +484,8 @@ def api_dashboard_resumo():
     def media(lista, casas=1):
         return round(sum(lista) / len(lista), casas) if lista else None
 
-    # `tempo_medio_min` é mantido pelo nome/formato de sempre (número, nunca
-    # None) para não quebrar quem já consome este campo; os dois novos —
-    # tempo até ser assumido e tempo de atendimento em si — são mais
-    # precisos e vêm como `None` quando não há dado (nunca inventados).
     tempo_medio_min = round(sum(tempos_totais) / len(tempos_totais), 1) if tempos_totais else 0
 
-    # Avaliação média não aparece mais no Dashboard, mas o Histórico usa este
-    # mesmo endpoint para seus cartões de estatística (ver
-    # hotelaria/historico.js) e precisa dela.
     ids_filtrados = [c["id"] for c in linhas]
     if ids_filtrados:
         marcadores = ",".join("%s" for _ in ids_filtrados)
@@ -554,9 +496,6 @@ def api_dashboard_resumo():
         avaliacoes = []
     media_avaliacao = round(sum(a["estrelas"] for a in avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0
 
-    # "outros" não é um serviço de hotelaria de fato — é só a caixa de
-    # entrada de chamados encaminhados pela Central de Chamados — então
-    # não entra no gráfico "Chamados por serviço".
     por_servico = {chave: 0 for chave in SERVICOS if chave != "outros"}
     for c in linhas:
         if c["servico"] in por_servico:
@@ -570,9 +509,6 @@ def api_dashboard_resumo():
 
     por_andar = {}
     chamados_sem_andar = 0
-    # Chamados por andar separados por status (gráfico "Chamados por andar",
-    # mesmo formato do Dashboard de Enfermagem, que separa por prioridade).
-    # Todos os andares aparecem, mesmo com zero.
     filtro_andar = request.args.get("andar")
     por_andar_status = {
         nome: {"pendente": 0, "em_andamento": 0, "finalizado": 0}
@@ -587,8 +523,6 @@ def api_dashboard_resumo():
         else:
             chamados_sem_andar += 1
 
-    # Série "Chamados por período" (ver timeutils.serie_periodo). Para
-    # "Hoje": últimas 24h com os mesmos filtros, exceto o período.
     datas_24h = []
     if request.args.get("periodo") == "hoje":
         clausulas_24h, params_24h = _construir_filtros_dashboard(request.args, ignorar_periodo=True)
@@ -602,10 +536,6 @@ def api_dashboard_resumo():
         (request.args.get("data_inicio") or "").strip(), (request.args.get("data_fim") or "").strip(),
     )
 
-    # Comparativo com a janela equivalente imediatamente anterior — mesmo
-    # racional da Enfermagem (ver enfermagem/api.py::metricas): só calculado
-    # quando há um atalho de período reconhecido, para nunca inventar uma
-    # base de comparação arbitrária.
     comparativo = None
     periodo = request.args.get("periodo")
     janela_anterior = janela_comparativa_anterior(periodo) if periodo else None
@@ -645,10 +575,6 @@ def api_dashboard_resumo():
         "comparativo_periodo_anterior": comparativo,
     })
 
-
-# ---------------------------------------------------------------------------
-# Tarefa de segundo plano: expira confirmações após 30 minutos
-# ---------------------------------------------------------------------------
 def _verificar_confirmacoes_expiradas(app):
     while True:
         time.sleep(30)
@@ -662,17 +588,14 @@ def _verificar_confirmacoes_expiradas(app):
                     (STATUS_FINALIZADO, CONFIRMACAO_PENDENTE, agora_texto)
                 )
                 linhas = cursor.fetchall()
-            if linhas:
-                ids = [r["id"] for r in linhas]
-                conn.executemany(
-                    "UPDATE hotelaria_chamados SET confirmacao_resolucao = %s WHERE id = %s",
-                    [(CONFIRMACAO_EXPIRADA, i) for i in ids],
-                )
-                conn.commit()
+                if linhas:
+                    ids = [r["id"] for r in linhas]
+                    cursor.executemany(
+                        "UPDATE hotelaria_chamados SET confirmacao_resolucao = %s WHERE id = %s",
+                        [(CONFIRMACAO_EXPIRADA, i) for i in ids],
+                    )
+                    conn.commit()
         except Exception:
-            # Thread de segundo plano, fora de qualquer contexto de
-            # requisição — não é possível usar `current_app` aqui, por isso
-            # o logger vem do `app` recebido como parâmetro.
             app.logger.exception("Falha ao verificar confirmações expiradas da Hotelaria")
         finally:
             conn.close()

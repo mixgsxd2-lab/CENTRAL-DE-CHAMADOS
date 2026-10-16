@@ -1,25 +1,4 @@
 # -*- coding: utf-8 -*-
-"""Controle de acesso da tela do PACIENTE via QR Code do leito.
-
-Regras (pedido do hospital):
-  1. O QR Code de cada leito é FIXO — nunca muda. Ele aponta para
-     `/enfermagem/?acesso=<token>&andar=...&leito=...`, e o token é um só,
-     gerado uma vez e guardado em `enfermagem_config` (nunca é trocado).
-  2. Ao escanear, o paciente entra sem senha: o servidor grava na SESSÃO do
-     navegador (cookie assinado) qual leito foi liberado e QUANDO — sempre
-     pelo relógio do servidor (America/Fortaleza), nunca o do celular — e
-     redireciona para a URL "limpa" (sem o token). Assim, recarregar a
-     página depois da meia-noite NÃO libera o acesso de novo: só escanear o
-     QR Code (que abre a URL com o token) libera.
-  3. A liberação vale até a próxima meia-noite (00:00 de Fortaleza), igual
-     para todo mundo — não importa a hora em que o paciente escaneou.
-  4. "Expirar acesso" (um leito) e "Expirar todos" (Central) gravam o
-     horário da revogação. Toda liberação ANTERIOR a esse horário deixa de
-     valer na hora; quem escanear DEPOIS entra normalmente, mas continua
-     valendo só até a mesma meia-noite (revogar não abre um novo período).
-
-Nada sobre o paciente é guardado: só andar/leito e horários.
-"""
 import secrets
 from datetime import datetime, timedelta
 
@@ -32,13 +11,10 @@ from timeutils import agora
 CHAVE_TOKEN = "acesso_paciente_token"
 CHAVE_EXPIRADO_TODOS = "acesso_expirado_todos_em"
 
-# Chave da sessão do navegador do paciente: {"andar", "leito", "desde"}.
 SESSAO_ACESSO = "enfermagem_acesso_leito"
 
 
 def _texto(dt):
-    # Sempre com microssegundos: um "Expirar acesso" e um novo escaneamento
-    # no mesmo segundo precisam continuar distinguíveis.
     return dt.isoformat(sep=" ", timespec="microseconds")
 
 
@@ -59,12 +35,7 @@ def proxima_meia_noite(momento=None):
     return inicio_do_dia(momento) + timedelta(days=1)
 
 
-# ---------------------------------------------------------------------------
-# Token fixo dos QR Codes
-# ---------------------------------------------------------------------------
 def obter_token():
-    """Token dos QR Codes — criado uma única vez e nunca trocado (trocar o
-    token invalidaria todos os QR Codes impressos)."""
     db = get_db()
     with db.cursor() as cursor:
         cursor.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,))
@@ -73,7 +44,7 @@ def obter_token():
             return row["valor"]
 
         token = secrets.token_urlsafe(24)
-        cursor.execute("INSERT IGNORE INTO enfermagem_config (chave, valor) VALUES (%s, %s)", (CHAVE_TOKEN, token))
+        cursor.execute("INSERT INTO enfermagem_config (chave, valor) VALUES (%s, %s) ON CONFLICT (chave) DO NOTHING", (CHAVE_TOKEN, token))
         db.commit()
 
         cursor.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_TOKEN,))
@@ -84,9 +55,6 @@ def token_valido(token):
     return bool(token) and secrets.compare_digest(str(token), obter_token())
 
 
-# ---------------------------------------------------------------------------
-# Revogações
-# ---------------------------------------------------------------------------
 def _expirado_todos_em(db):
     with db.cursor() as cursor:
         cursor.execute("SELECT valor FROM enfermagem_config WHERE chave = %s", (CHAVE_EXPIRADO_TODOS,))
@@ -114,14 +82,13 @@ def _liberacao_vale(desde, expirado_leito, expirado_todos, momento):
 
 
 def expirar_leito(andar, leito):
-    """Retorna False se o andar/leito não existir."""
     if not leito_valido(andar, leito):
         return False
     db = get_db()
     with db.cursor() as cursor:
         cursor.execute(
             "INSERT INTO enfermagem_acesso_leitos (andar, leito, expirado_em) VALUES (%s, %s, %s) "
-            "ON DUPLICATE KEY UPDATE expirado_em = VALUES(expirado_em)",
+            "ON CONFLICT (andar, leito) DO UPDATE SET expirado_em = EXCLUDED.expirado_em",
             (andar, leito, _texto(agora())),
         )
     db.commit()
@@ -133,38 +100,30 @@ def expirar_todos():
     with db.cursor() as cursor:
         cursor.execute(
             "INSERT INTO enfermagem_config (chave, valor) VALUES (%s, %s) "
-            "ON DUPLICATE KEY UPDATE valor = VALUES(valor)",
+            "ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor",
             (CHAVE_EXPIRADO_TODOS, _texto(agora())),
         )
     db.commit()
 
 
-# ---------------------------------------------------------------------------
-# Sessão do paciente
-# ---------------------------------------------------------------------------
 def conceder_acesso(andar, leito):
-    """Chamado quando o QR Code do leito é escaneado (token válido)."""
     momento = agora()
     session[SESSAO_ACESSO] = {"andar": andar, "leito": leito, "desde": _texto(momento)}
     db = get_db()
     with db.cursor() as cursor:
         cursor.execute(
             "INSERT INTO enfermagem_acesso_leitos (andar, leito, ultimo_acesso_em) VALUES (%s, %s, %s) "
-            "ON DUPLICATE KEY UPDATE ultimo_acesso_em = VALUES(ultimo_acesso_em)",
+            "ON CONFLICT (andar, leito) DO UPDATE SET ultimo_acesso_em = EXCLUDED.ultimo_acesso_em",
             (andar, leito, _texto(momento)),
         )
     db.commit()
 
 
 def tinha_acesso():
-    """True se este navegador já escaneou algum QR Code (mesmo que a
-    liberação já tenha expirado) — só muda o texto da tela de bloqueio."""
     return bool(session.get(SESSAO_ACESSO))
 
 
 def acesso_atual():
-    """Liberação vigente deste navegador ({"andar", "leito", "expira_em"})
-    ou None se nunca escaneou / passou da meia-noite / foi revogada."""
     dados = session.get(SESSAO_ACESSO)
     if not isinstance(dados, dict):
         return None
@@ -181,13 +140,7 @@ def acesso_atual():
     return {"andar": andar, "leito": leito, "expira_em": proxima_meia_noite(momento)}
 
 
-# ---------------------------------------------------------------------------
-# Painel da Central
-# ---------------------------------------------------------------------------
 def status_leitos():
-    """{(andar, leito): "HH:MM"} dos leitos cujo último escaneamento ainda
-    vale hoje (não expirou nem foi revogado). Um celular pode ter perdido o
-    cookie, então isto é só indicativo: "alguém escaneou e ainda vale"."""
     momento = agora()
     db = get_db()
     expirado_todos = _expirado_todos_em(db)

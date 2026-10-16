@@ -4,15 +4,6 @@
 #   1. Suba este repositório para o GitHub.
 #   2. No Render, clique em "New" -> "Blueprint" e aponte para o repositório.
 #      O Render lê este arquivo e cria o serviço sozinho.
-#
-# IMPORTANTE — banco de dados (MySQL):
-#   O banco é um MySQL acessado pela rede. Este serviço web não provisiona o MySQL: crie um banco
-#   gerenciado (Render "New -> MySQL" não existe nativamente; use um
-#   add-on externo, ex. PlanetScale/Aiven/RDS, ou um segundo serviço
-#   Docker com a imagem `mysql`) e defina MYSQL_HOST / MYSQL_PORT /
-#   MYSQL_DATABASE / MYSQL_USER / MYSQL_PASSWORD nas variáveis de
-#   ambiente abaixo (os três primeiros podem ir direto aqui; usuário e
-#   senha, como "secret" no painel do Render).
 services:
   - type: web
     name: hospital-rio-grande
@@ -20,16 +11,6 @@ services:
     rootDir: hospital_rio_grande
     plan: free
     buildCommand: pip install -r requirements.txt
-    # "python -m gunicorn" em vez de "gunicorn" puro: o pip instala o
-    # pacote certinho, mas em alguns ambientes do Render o executável
-    # `gunicorn` não fica no PATH do container que roda o start command
-    # ("gunicorn: command not found" mesmo com o build OK). Chamando como
-    # módulo do Python, isso nunca depende do PATH.
-    #
-    # 1 worker + várias threads: evita duplicar a tarefa de segundo plano
-    # (expiração de confirmações da Hotelaria) e mantém o limitador de
-    # tentativas de login (em memória) funcionando corretamente — os dois
-    # dependem de um único processo.
     startCommand: python -m gunicorn app:app --workers 1 --threads 4 --timeout 120
     envVars:
       - key: PYTHON_VERSION
@@ -40,15 +21,15 @@ services:
         generateValue: true
       - key: SESSION_COOKIE_SECURE
         value: "1"
-      - key: MYSQL_HOST
-        sync: false   # preencha no painel com o host do seu MySQL gerenciado
-      - key: MYSQL_PORT
-        value: "3306"
-      - key: MYSQL_DATABASE
-        value: hospital_rio_grande
-      - key: MYSQL_USER
+      - key: PGHOST
+        sync: false   # preencha no painel com o host do seu PostgreSQL gerenciado
+      - key: PGPORT
+        value: "5432"
+      - key: PGDATABASE
+        value: Central_Chamados
+      - key: PGUSER
         sync: false
-      - key: MYSQL_PASSWORD
+      - key: PGPASSWORD
         sync: false
       - key: HOTELARIA_USUARIO
         value: admin
