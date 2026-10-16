@@ -1,15 +1,4 @@
 # -*- coding: utf-8 -*-
-"""API JSON da Central de Chamados — MySQL (sem ORM).
-
-Concorrência: as transições de status (`assumir`, `finalizar`) usam
-`UPDATE ... WHERE status = <status esperado>`. Se dois profissionais
-tentarem assumir o mesmo chamado ao mesmo tempo, apenas o primeiro UPDATE
-afeta uma linha (`cursor.rowcount`); o segundo recebe HTTP 409 com uma
-mensagem clara — a regra vive no banco, não apenas no JavaScript, e
-continua válida mesmo com vários administradores em dispositivos
-diferentes ao mesmo tempo. O InnoDB do MySQL permite que essas escritas
-convivam com as leituras constantes da Central e da TV sem bloqueios.
-"""
 from datetime import datetime
 
 from flask import Blueprint, abort, g, jsonify, request, session, url_for
@@ -212,10 +201,12 @@ def criar_chamado():
         cursor.execute(
             """INSERT INTO enfermagem_chamados
                (andar, leito, categoria, subcategoria, detalhe, gravidade_base, status, criado_em)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id
+               """,
             (andar, leito, categoria, subcategoria, detalhe, gravidade, STATUS_PENDENTE, texto_agora),
         )
-        chamado_id = cursor.lastrowid
+        chamado_id = cursor.fetchone()["id"]
     db.commit()
 
     chamado = _buscar_ou_404(chamado_id)

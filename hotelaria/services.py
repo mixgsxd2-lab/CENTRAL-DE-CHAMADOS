@@ -46,10 +46,12 @@ def criar_chamado_hotelaria(leito, servico, descricao, origem="hotelaria", andar
         cursor.execute(
             """INSERT INTO hotelaria_chamados
                (leito, servico, descricao, status, origem, criado_em, confirmacao_resolucao, andar)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id
+               """,
             (leito, servico, descricao, STATUS_PENDENTE, origem, para_texto(agora()), CONFIRMACAO_NA, andar),
         )
-        chamado_id = cursor.lastrowid
+        chamado_id = cursor.fetchone()["id"]
     db.commit()
 
     with db.cursor() as cursor:
