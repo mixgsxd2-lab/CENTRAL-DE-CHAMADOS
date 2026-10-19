@@ -5,12 +5,12 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${PGUSER:-postgres}
-      POSTGRES_PASSWORD: ${PGPASSWORD:-Hrg@12345}
-      POSTGRES_DB: ${PGDATABASE:-Central_Chamados}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-defina-uma-senha-local}
+      POSTGRES_DB: ${PGDATABASE:-central_chamados}
     volumes:
       - chamador-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-postgres} -d ${PGDATABASE:-Central_Chamados}"]
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-postgres} -d ${PGDATABASE:-central_chamados}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -28,9 +28,9 @@ services:
       PORT: "8000"
       PGHOST: postgres
       PGPORT: "5432"
-      PGDATABASE: ${PGDATABASE:-Central_Chamados}
+      PGDATABASE: ${PGDATABASE:-central_chamados}
       PGUSER: ${PGUSER:-postgres}
-      PGPASSWORD: ${PGPASSWORD:-Hrg@12345}
+      PGPASSWORD: ${PGPASSWORD:-defina-uma-senha-local}
       FLASK_DEBUG: "0"
       SECRET_KEY: ${SECRET_KEY:-troque-esta-chave-local}
       SESSION_COOKIE_SECURE: "1"   # "1" apenas atrás de HTTPS
@@ -47,4 +47,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  chamador-mysql:
+  chamador-postgres:

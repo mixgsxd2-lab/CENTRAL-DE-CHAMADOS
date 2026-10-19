@@ -1,8 +1,11 @@
 # Deploy no EKS — Central de Chamados
 
-Este procedimento publica a Central de Chamados com SQLite persistente no
-cluster EKS. O ambiente de produção usa uma réplica única e um volume EBS;
-não escale o Deployment horizontalmente enquanto o banco for SQLite.
+Este procedimento publica a Central de Chamados no cluster EKS. A aplicação
+usa PostgreSQL externo ao container; o servidor e o banco PostgreSQL devem
+estar provisionados e acessíveis pela rede antes do deploy. Em uma instalação
+inicial, o banco pode estar vazio: a aplicação cria as tabelas ao iniciar.
+Não há etapa de cópia do antigo SQLite. O Deployment permanece com uma réplica
+porque o limitador de login e a tarefa de segundo plano são mantidos em memória.
 
 ## Dados definidos
 
@@ -10,9 +13,9 @@ não escale o Deployment horizontalmente enquanto o banco for SQLite.
 | --- | --- |
 | Namespace | `prd-central-chamados` |
 | URL | `https://chamados.hospitalriogrande.com.br` |
-| Imagem | `911107441482.dkr.ecr.sa-east-1.amazonaws.com/central-de-chamados` |
+| Imagem | `911107441482.dkr.ecr.sa-east-1.amazonaws.com/centralservicos-frontend` |
 | Plataforma | `linux/arm64` |
-| Dados | PVC `central-chamados-data`, StorageClass `gp3`, 5 GiB |
+| Banco | PostgreSQL externo, host e credenciais no Secret `central-chamados-secrets` |
 
 ## Pré-requisitos
 
@@ -21,37 +24,24 @@ não escale o Deployment horizontalmente enquanto o banco for SQLite.
 2. A sessão AWS precisa estar autenticada com MFA e ter acesso ao ECR.
 3. A máquina de build precisa ter Docker com Buildx e suporte a `linux/arm64`.
 4. O contexto Kubernetes precisa ser `hrg-prod-eks`.
+5. Um banco PostgreSQL vazio ou dedicado precisa existir, com database e
+   usuário criados, e aceitar conexões originadas do cluster EKS.
 
 Confirme os acessos antes de criar recursos:
 
 ```powershell
 aws sts get-caller-identity
 kubectl config current-context
-kubectl get storageclass gp3
 ```
 
-## 1. Criar o repositório ECR
-
-Execute uma única vez, já com a sessão AWS MFA válida:
-
-```powershell
-aws ecr create-repository `
-  --repository-name central-de-chamados `
-  --image-tag-mutability IMMUTABLE `
-  --image-scanning-configuration scanOnPush=true `
-  --region sa-east-1
-```
-
-Se o repositório já existir, o comando retorna erro `RepositoryAlreadyExistsException` e nenhuma ação adicional é necessária.
-
-## 2. Construir e enviar a imagem
+## 1. Construir e enviar a imagem
 
 Na raiz deste repositório, escolha uma tag nova no formato `AAAA-MM-DD-N`:
 
 ```powershell
 $region = 'sa-east-1'
 $accountId = '911107441482'
-$repository = 'central-de-chamados'
+$repository = 'centralservicos-frontend'
 $tag = 'AAAA-MM-DD-1'
 $image = "$accountId.dkr.ecr.$region.amazonaws.com/$repository`:$tag"
 
@@ -70,7 +60,7 @@ aws ecr describe-images --repository-name $repository --image-ids imageTag=$tag 
 O teste de saúde deve responder `200` e `ok`. Registre o digest exibido após o
 push; a tag é imutável e servirá como referência para rollback.
 
-## 3. Criar namespace e segredos
+## 2. Criar namespace e segredos
 
 Esta etapa cria recursos de produção e os valores informados entram no ambiente
 da aplicação. Não grave os valores em arquivos ou no Git.
@@ -79,20 +69,32 @@ da aplicação. Não grave os valores em arquivos ou no Git.
 kubectl apply -f k8s/namespace.yaml
 
 $secretKey = python -c "import secrets; print(secrets.token_hex(32))"
+$pgHost = Read-Host 'Host ou endpoint do PostgreSQL'
+$pgPort = Read-Host 'Porta do PostgreSQL (normalmente 5432)'
+$pgDatabase = Read-Host 'Nome do banco PostgreSQL'
+$pgUser = Read-Host 'Usuário do PostgreSQL'
+$pgPasswordSecure = Read-Host 'Senha do PostgreSQL' -AsSecureString
 $hotelariaUsuario = Read-Host 'Usuário administrativo da Hotelaria'
 $hotelariaSenha = Read-Host 'Senha administrativa da Hotelaria' -AsSecureString
 $enfermagemUsuario = Read-Host 'Usuário administrativo da Enfermagem'
 $enfermagemSenha = Read-Host 'Senha administrativa da Enfermagem' -AsSecureString
 
-# Converta as duas senhas apenas em memória para enviar ao Kubernetes.
+# Converta as senhas apenas em memória para enviar ao Kubernetes.
 $hotelariaPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($hotelariaSenha)
 $enfermagemPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($enfermagemSenha)
+$pgPasswordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($pgPasswordSecure)
 try {
+  $pgPasswordTexto = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pgPasswordPtr)
   $hotelariaSenhaTexto = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($hotelariaPtr)
   $enfermagemSenhaTexto = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($enfermagemPtr)
 
   kubectl -n prd-central-chamados create secret generic central-chamados-secrets `
     --from-literal=SECRET_KEY=$secretKey `
+    --from-literal=PGHOST=$pgHost `
+    --from-literal=PGPORT=$pgPort `
+    --from-literal=PGDATABASE=$pgDatabase `
+    --from-literal=PGUSER=$pgUser `
+    --from-literal=PGPASSWORD=$pgPasswordTexto `
     --from-literal=HOTELARIA_USUARIO=$hotelariaUsuario `
     --from-literal=HOTELARIA_SENHA=$hotelariaSenhaTexto `
     --from-literal=ENFERMAGEM_USUARIO=$enfermagemUsuario `
@@ -101,32 +103,32 @@ try {
 finally {
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($hotelariaPtr)
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($enfermagemPtr)
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pgPasswordPtr)
+  Remove-Variable pgPasswordTexto -ErrorAction SilentlyContinue
 }
 ```
 
-## 4. Validar e publicar os manifestos
+O Secret guarda as configurações de conexão do PostgreSQL e as credenciais
+administrativas. O banco pode estar vazio; não importe o arquivo SQLite antigo.
 
-Substitua a tag temporária no manifesto renderizado, valide no servidor e só
-então aplique. O primeiro início do Pod cria o arquivo SQLite e as tabelas no
-PVC vazio.
+## 3. Validar e publicar os manifestos
+
+Atualize a tag da imagem em `k8s/deployment.yaml`, valide o manifesto no
+servidor e só então aplique. Na primeira inicialização, a aplicação conecta
+ao PostgreSQL e cria as tabelas necessárias.
 
 ```powershell
-$image = '911107441482.dkr.ecr.sa-east-1.amazonaws.com/central-de-chamados:AAAA-MM-DD-1'
 $renderizado = kubectl kustomize k8s
-$renderizado = $renderizado.Replace(
-  '911107441482.dkr.ecr.sa-east-1.amazonaws.com/central-de-chamados:REPLACE_ME',
-  $image
-)
 
 $renderizado | kubectl apply --dry-run=server -f -
 $renderizado | kubectl apply -f -
 kubectl -n prd-central-chamados rollout status deployment/central-chamados --timeout=5m
 ```
 
-## 5. Validar a publicação
+## 4. Validar a publicação
 
 ```powershell
-kubectl -n prd-central-chamados get deployment,pods,service,pvc,ingress
+kubectl -n prd-central-chamados get deployment,pods,service,ingress
 kubectl -n prd-central-chamados logs deployment/central-chamados --tail=100
 curl.exe -i https://chamados.hospitalriogrande.com.br/healthz
 ```
@@ -144,4 +146,6 @@ kubectl -n prd-central-chamados rollout undo deployment/central-chamados
 kubectl -n prd-central-chamados rollout status deployment/central-chamados --timeout=5m
 ```
 
-O rollback não remove o PVC nem o banco SQLite.
+O rollback não altera o banco PostgreSQL. Um PVC que tenha sido criado pela
+versão anterior com SQLite não é mais usado pelo Deployment; não o exclua sem
+confirmar se ainda precisa ser preservado.

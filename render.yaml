@@ -26,7 +26,7 @@ services:
       - key: PGPORT
         value: "5432"
       - key: PGDATABASE
-        value: Central_Chamados
+        value: central_chamados
       - key: PGUSER
         sync: false
       - key: PGPASSWORD

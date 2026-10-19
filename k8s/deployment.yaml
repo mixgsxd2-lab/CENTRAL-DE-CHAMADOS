@@ -1,7 +1,6 @@
-# O limitador de login (em memória) exige exatamente uma réplica e
-# estratégia Recreate. Os dados em si agora vivem no MySQL (fora do
-# cluster ou em outro Deployment/serviço gerenciado) — não há mais volume
-# de dados aqui.
+# O limitador de login (em memória) exige uma réplica e estratégia Recreate.
+# O PostgreSQL deve estar provisionado separadamente e acessível pela rede;
+# os dados do banco não ficam no container da aplicação.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,9 +42,6 @@ spec:
               containerPort: 8000
           env:
             - {name: PORT, value: "8000"}
-            - {name: MYSQL_HOST, value: central-chamados-mysql}
-            - {name: MYSQL_PORT, value: "3306"}
-            - {name: MYSQL_DATABASE, value: hospital_rio_grande}
             - {name: FLASK_DEBUG, value: "0"}
             - {name: SESSION_COOKIE_SECURE, value: "1"}
             - {name: DADOS_DEMO, value: "0"}

@@ -22,14 +22,14 @@ def agora():
 
 
 def para_texto(dt):
-    """Converte um datetime para texto ISO, para gravar no MySQL."""
+    """Converte um datetime para texto ISO, para gravar no PostgreSQL."""
     if dt is None:
         return None
     return dt.isoformat(sep=" ", timespec="seconds")
 
 
 def parse_dt(texto):
-    """Converte o texto ISO gravado no MySQL de volta para datetime."""
+    """Converte o texto ISO gravado no PostgreSQL de volta para datetime."""
     if not texto:
         return None
     return datetime.fromisoformat(texto)

@@ -17,8 +17,8 @@ class Config:
     PGHOST = os.environ.get("PGHOST", "localhost")
     PGPORT = int(os.environ.get("PGPORT", "5432"))
     PGUSER = os.environ.get("PGUSER", "postgres")
-    PGPASSWORD = os.environ.get("PGPASSWORD", "Hrg@12345")
-    PGDATABASE = os.environ.get("PGDATABASE", "Central_Chamados")
+    PGPASSWORD = os.environ.get("PGPASSWORD")
+    PGDATABASE = os.environ.get("PGDATABASE", "central_chamados")
 
     TIMEZONE = "America/Fortaleza"
 

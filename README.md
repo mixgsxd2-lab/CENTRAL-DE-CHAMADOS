@@ -13,7 +13,7 @@ Flask**:
 | **Central de Hotelaria** (sistema já existente, preservado) | `hotelaria_pages`, `hotelaria_api` | `/hotelaria`, `/hotelaria/api` | Solicitações não clínicas: acomodação, alimentação, lavanderia, manutenção, higienização |
 | **Portal** | `portal` | `/` | Tela inicial com as 2 entradas administrativas (Admin Enfermagem / Admin Hotelaria) |
 
-Eles compartilham apenas o processo e o banco de dados MySQL — cada um
+Eles compartilham apenas o processo e o banco de dados PostgreSQL — cada um
 tem suas próprias tabelas, rotas e telas. A única ponte entre os dois é a
 categoria **"Outros"** do fluxo de paciente da Enfermagem, que cria o
 chamado diretamente na Hotelaria (ver seção *Encaminhamento "Outros" →
@@ -23,22 +23,21 @@ Hotelaria*).
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # ajuste host/usuário/senha do seu MySQL
+cp .env.example .env   # ajuste host/usuário/senha do seu PostgreSQL
 python app.py
 ```
 
-É preciso ter um MySQL acessível (local, em container ou gerenciado) antes
-de subir a aplicação — veja `MYSQL_HOST`/`MYSQL_PORT`/`MYSQL_USER`/
-`MYSQL_PASSWORD`/`MYSQL_DATABASE` em `config.py`. Com `docker compose up`,
-um MySQL já é criado automaticamente (ver `docker-compose.yaml`). A
-aplicação sobe em `http://localhost:5000` (porta configurável via
-variável de ambiente `PORT`). O banco (`MYSQL_DATABASE`) precisa existir
-no servidor; na primeira execução, `db.py` cria todas as tabelas
-automaticamente.
+É preciso ter um PostgreSQL acessível antes de iniciar a aplicação. A
+conexão é configurada pelas variáveis `PGHOST`, `PGPORT`, `PGUSER`,
+`PGPASSWORD` e `PGDATABASE`. Para desenvolvimento local, `docker compose up`
+inicia um PostgreSQL junto com a aplicação. O banco indicado por
+`PGDATABASE` precisa existir; na primeira execução, `db.py` cria as tabelas
+automaticamente. Em uma instalação nova, elas começam vazias (exceto se
+`DADOS_DEMO=1` estiver ativado).
 
 ## Arquitetura técnica
 
-- **Flask puro + PyMySQL — sem ORM.** Não há Flask-SQLAlchemy nem
+- **Flask puro + psycopg2 — sem ORM.** Não há Flask-SQLAlchemy nem
   Flask-SocketIO no projeto final. Essa foi uma decisão deliberada: a
   prioridade do projeto era ter um sistema **realmente testado e
   verificado**, não apenas escrito, com o mínimo de dependências. As
@@ -67,7 +66,7 @@ automaticamente.
 O requisito de suportar múltiplos pacientes e administradores
 simultaneamente sem duplicar ou perder chamados foi resolvido com:
 
-1. O MySQL/InnoDB suporta leitores e gravadores concorrentes de várias
+1. O PostgreSQL suporta leitores e gravadores concorrentes de várias
    conexões/processos nativamente.
 2. **Transições de status atômicas**: "assumir" e "finalizar" um chamado
    são feitos com `UPDATE ... WHERE id = %s AND status = %s` e checagem de

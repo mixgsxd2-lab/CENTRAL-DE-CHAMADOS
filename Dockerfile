@@ -22,6 +22,6 @@ USER 10001
 EXPOSE 8000
 
 # 1 worker + threads: o limitador de login (memória) e a tarefa de segundo
-# plano da Hotelaria dependem de um único processo; o MySQL já aceita
+# plano da Hotelaria dependem de um único processo; o PostgreSQL aceita
 # conexões concorrentes de vários workers, mas isso continua valendo.
 CMD ["sh", "-c", "exec gunicorn app:app --bind 0.0.0.0:${PORT} --workers 1 --threads 4 --timeout 120 --access-logfile -"]

@@ -98,8 +98,8 @@ def get_db():
         g.db = psycopg2.connect(
             host=current_app.config.get("PGHOST", "localhost"),
             user=current_app.config.get("PGUSER", "postgres"),
-            password=current_app.config.get("PGPASSWORD", "Hrg@12345"),
-            dbname=current_app.config.get("PGDATABASE", "Central_Chamados"),
+            password=current_app.config.get("PGPASSWORD"),
+            dbname=current_app.config.get("PGDATABASE", "central_chamados"),
             port=current_app.config.get("PGPORT", 5432),
             client_encoding="utf8",
             cursor_factory=psycopg2.extras.RealDictCursor,
@@ -152,8 +152,8 @@ def nova_conexao_standalone(app):
     return psycopg2.connect(
         host=app.config.get("PGHOST", "localhost"),
         user=app.config.get("PGUSER", "postgres"),
-        password=app.config.get("PGPASSWORD", "Hrg@12345"),
-        dbname=app.config.get("PGDATABASE", "Central_Chamados"),
+        password=app.config.get("PGPASSWORD"),
+        dbname=app.config.get("PGDATABASE", "central_chamados"),
         port=app.config.get("PGPORT", 5432),
         client_encoding="utf8",
         cursor_factory=psycopg2.extras.RealDictCursor,
