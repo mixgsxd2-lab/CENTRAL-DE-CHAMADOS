@@ -45,6 +45,39 @@ spec:
             - {name: FLASK_DEBUG, value: "0"}
             - {name: SESSION_COOKIE_SECURE, value: "1"}
             - {name: DADOS_DEMO, value: "0"}
+            # As variáveis PG* são lidas pelo psycopg2/libpq. Referencie as
+            # chaves individualmente; DATABASE_URL existe no Secret do gestor,
+            # mas não é usada pela aplicação e não precisa ir para o container.
+            - name: PGHOST
+              valueFrom:
+                secretKeyRef:
+                  name: central-chamados-db
+                  key: PGHOST
+            - name: PGPORT
+              valueFrom:
+                secretKeyRef:
+                  name: central-chamados-db
+                  key: PGPORT
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: central-chamados-db
+                  key: PGDATABASE
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: central-chamados-db
+                  key: PGUSER
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: central-chamados-db
+                  key: PGPASSWORD
+            - name: PGSSLMODE
+              valueFrom:
+                secretKeyRef:
+                  name: central-chamados-db
+                  key: PGSSLMODE
           envFrom:
             - secretRef:
                 name: central-chamados-secrets

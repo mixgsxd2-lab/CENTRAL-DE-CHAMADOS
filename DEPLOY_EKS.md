@@ -15,7 +15,8 @@ porque o limitador de login e a tarefa de segundo plano são mantidos em memóri
 | URL | `https://chamados.hospitalriogrande.com.br` |
 | Imagem | `911107441482.dkr.ecr.sa-east-1.amazonaws.com/centralservicos-frontend` |
 | Plataforma | `linux/arm64` |
-| Banco | PostgreSQL externo, host e credenciais no Secret `central-chamados-secrets` |
+| Banco | PostgreSQL externo; conexão no Secret `central-chamados-db` |
+| Configuração da aplicação | Secret `central-chamados-secrets` (chave e logins administrativos) |
 
 ## Pré-requisitos
 
@@ -24,8 +25,13 @@ porque o limitador de login e a tarefa de segundo plano são mantidos em memóri
 2. A sessão AWS precisa estar autenticada com MFA e ter acesso ao ECR.
 3. A máquina de build precisa ter Docker com Buildx e suporte a `linux/arm64`.
 4. O contexto Kubernetes precisa ser `hrg-prod-eks`.
-5. Um banco PostgreSQL vazio ou dedicado precisa existir, com database e
-   usuário criados, e aceitar conexões originadas do cluster EKS.
+5. O Secret `central-chamados-db` deve existir no namespace `prd-central-chamados`,
+   contendo `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` e
+   `PGSSLMODE`. Neste ambiente, a equipe informou porta `5433` e modo TLS
+   `require`. O banco e usuário são provisionados pelo responsável pelo RDS.
+6. O Security Group/regras de rede do RDS devem permitir conexão TCP na porta
+   configurada somente a partir da origem autorizada do EKS. O endpoint deve
+   ser alcançável por rede privada.
 
 Confirme os acessos antes de criar recursos:
 
@@ -60,7 +66,7 @@ aws ecr describe-images --repository-name $repository --image-ids imageTag=$tag 
 O teste de saúde deve responder `200` e `ok`. Registre o digest exibido após o
 push; a tag é imutável e servirá como referência para rollback.
 
-## 2. Criar namespace e segredos
+## 2. Preparar namespace e Secrets
 
 Esta etapa cria recursos de produção e os valores informados entram no ambiente
 da aplicação. Não grave os valores em arquivos ou no Git.
@@ -68,12 +74,22 @@ da aplicação. Não grave os valores em arquivos ou no Git.
 ```powershell
 kubectl apply -f k8s/namespace.yaml
 
+# Confirme somente a existência e os nomes das chaves; não exiba valores.
+kubectl -n prd-central-chamados describe secret central-chamados-db
+```
+
+O Secret `central-chamados-db` é fornecido pelo gestor/equipe do RDS. Não use
+as credenciais de outros sistemas nem aplique `k8s/database-secret.example.yaml`;
+esse arquivo é somente uma referência das chaves esperadas. A variável
+`DATABASE_URL` também pode estar presente no Secret, mas o código atual conecta
+usando as variáveis `PG*`.
+
+Crie o Secret separado para a configuração da aplicação (não grave os valores
+em arquivos ou no Git):
+
+```powershell
+
 $secretKey = python -c "import secrets; print(secrets.token_hex(32))"
-$pgHost = Read-Host 'Host ou endpoint do PostgreSQL'
-$pgPort = Read-Host 'Porta do PostgreSQL (normalmente 5432)'
-$pgDatabase = Read-Host 'Nome do banco PostgreSQL'
-$pgUser = Read-Host 'Usuário do PostgreSQL'
-$pgPasswordSecure = Read-Host 'Senha do PostgreSQL' -AsSecureString
 $hotelariaUsuario = Read-Host 'Usuário administrativo da Hotelaria'
 $hotelariaSenha = Read-Host 'Senha administrativa da Hotelaria' -AsSecureString
 $enfermagemUsuario = Read-Host 'Usuário administrativo da Enfermagem'
@@ -82,34 +98,30 @@ $enfermagemSenha = Read-Host 'Senha administrativa da Enfermagem' -AsSecureStrin
 # Converta as senhas apenas em memória para enviar ao Kubernetes.
 $hotelariaPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($hotelariaSenha)
 $enfermagemPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($enfermagemSenha)
-$pgPasswordPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($pgPasswordSecure)
 try {
-  $pgPasswordTexto = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pgPasswordPtr)
   $hotelariaSenhaTexto = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($hotelariaPtr)
   $enfermagemSenhaTexto = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($enfermagemPtr)
 
   kubectl -n prd-central-chamados create secret generic central-chamados-secrets `
     --from-literal=SECRET_KEY=$secretKey `
-    --from-literal=PGHOST=$pgHost `
-    --from-literal=PGPORT=$pgPort `
-    --from-literal=PGDATABASE=$pgDatabase `
-    --from-literal=PGUSER=$pgUser `
-    --from-literal=PGPASSWORD=$pgPasswordTexto `
     --from-literal=HOTELARIA_USUARIO=$hotelariaUsuario `
     --from-literal=HOTELARIA_SENHA=$hotelariaSenhaTexto `
     --from-literal=ENFERMAGEM_USUARIO=$enfermagemUsuario `
-    --from-literal=ENFERMAGEM_SENHA=$enfermagemSenhaTexto
+    --from-literal=ENFERMAGEM_SENHA=$enfermagemSenhaTexto `
+    --dry-run=client -o yaml |
+    kubectl apply -f -
 }
 finally {
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($hotelariaPtr)
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($enfermagemPtr)
-  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pgPasswordPtr)
-  Remove-Variable pgPasswordTexto -ErrorAction SilentlyContinue
+  Remove-Variable hotelariaSenhaTexto, enfermagemSenhaTexto -ErrorAction SilentlyContinue
 }
 ```
 
-O Secret guarda as configurações de conexão do PostgreSQL e as credenciais
-administrativas. O banco pode estar vazio; não importe o arquivo SQLite antigo.
+Esse segundo Secret guarda a chave Flask e os logins administrativos da
+aplicação. A conexão ao banco é carregada separadamente de
+`central-chamados-db`. A aplicação cria as tabelas na primeira inicialização;
+não importe os dados antigos do SQLite.
 
 ## 3. Validar e publicar os manifestos
 
