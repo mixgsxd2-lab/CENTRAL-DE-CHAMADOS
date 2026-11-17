@@ -125,7 +125,10 @@ celular no mesmo leito. A API também recusa um segundo pedido de Hotelaria
 enquanto o anterior não estiver finalizado e devolve o que já está aberto.
 Todas as telas de escolha (Urgência, Dor, Soro, Falar com Enfermagem e
 Hotelaria) usam o mesmo cartão com emoji (`.cartao-opcao` em
-`static/css/enfermagem.css`).
+`static/css/enfermagem.css`). A cor de cada cartão (`tom` em
+`static/js/enfermagem/paciente.js`) mostra o estado do paciente:
+vermelho = crítico, laranja/amarelo = intermediário, verde = tranquilo,
+cinza = neutro e roxo = Hotelaria.
 
 ## Conformidade com LGPD
 

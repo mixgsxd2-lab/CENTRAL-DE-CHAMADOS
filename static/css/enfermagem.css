@@ -103,6 +103,24 @@
 .texto-opcao strong { font-size: 1.05rem; font-weight: 800; line-height: 1.25; }
 .texto-opcao small { font-size: 0.84rem; color: var(--texto-suave); line-height: 1.3; }
 
+/* Cores por estado do paciente (mesmas do design anterior): o círculo do
+   emoji e a faixa lateral do cartão mostram a gravidade. Crítico também
+   ganha borda e dica em vermelho. */
+.cartao-opcao[class*="tom-"] { border-left: 6px solid var(--tom); }
+.cartao-opcao[class*="tom-"] .emoji-opcao { background: var(--tom-fundo); box-shadow: inset 0 0 0 2px var(--tom-anel, transparent); }
+.tom-critica   { --tom: var(--critica);   --tom-fundo: var(--critica-fundo);   --tom-anel: var(--critica); }
+.tom-vermelho  { --tom: #d64550;          --tom-fundo: #fde0e2;                --tom-anel: #f2a0a6; }
+.tom-laranja   { --tom: #e07a2f;          --tom-fundo: #ffe1cf;                --tom-anel: #f7b98f; }
+.tom-amarelo   { --tom: #d4a514;          --tom-fundo: #fef7d6; }
+.tom-verde     { --tom: var(--baixa);     --tom-fundo: #e3f7ee;                --tom-anel: #9fd9bd; }
+.tom-baixa     { --tom: var(--baixa);     --tom-fundo: var(--baixa-fundo); }
+.tom-media     { --tom: var(--media);     --tom-fundo: var(--media-fundo); }
+.tom-hotelaria { --tom: var(--hotelaria); --tom-fundo: var(--hotelaria-fundo); }
+.tom-primaria  { --tom: var(--primaria);  --tom-fundo: var(--primaria-clara); }
+.cartao-opcao.tom-critica { border-color: var(--critica); }
+.cartao-opcao.tom-critica .texto-opcao small { color: var(--critica); font-weight: 700; }
+.cartao-opcao.selecionada { border-color: var(--primaria); border-left-color: var(--tom, var(--primaria)); }
+
 /* Início: os 2 cartões de área (Enfermagem / Hotelaria) dividem a altura
    da tela, com emoji bem grande — fácil de achar sem precisar ler. */
 .grade-areas { flex: 1; gap: 14px; }
@@ -110,14 +128,15 @@
   flex: 1; flex-direction: column; justify-content: center; text-align: center;
   gap: 12px; padding: 24px 18px; min-height: 180px; max-height: 300px; border-radius: 24px;
 }
+.cartao-area[class*="tom-"] { border-left-width: 2px; border-top: 6px solid var(--tom); }
 .cartao-area .emoji-opcao { width: 96px; height: 96px; font-size: 56px; }
 .cartao-area .texto-opcao { align-items: center; }
 .cartao-area .texto-opcao strong { font-size: 1.45rem; }
 .cartao-area .texto-opcao small { font-size: 0.92rem; }
 /* Chamado daquela área ainda em andamento: cartão fica cinza (não abre um
    novo chamado — o toque leva ao acompanhamento). */
-.cartao-area.em-andamento { background: #eceef2; border-color: #d5d9e0; box-shadow: none; color: #6b7280; }
-.cartao-area.em-andamento .emoji-opcao { background: #dfe2e8; filter: grayscale(1); opacity: 0.7; }
+.cartao-area.em-andamento { background: #eceef2; border-color: #d5d9e0; border-top-color: #c3c8d1; box-shadow: none; color: #6b7280; }
+.cartao-area.em-andamento .emoji-opcao { background: #dfe2e8; box-shadow: none; filter: grayscale(1); opacity: 0.7; }
 .cartao-area.em-andamento:hover { transform: none; }
 .selo-andamento {
   margin-top: 6px; padding: 5px 12px; border-radius: 999px;

@@ -26,53 +26,57 @@
   const CATEGORIA_HOTELARIA = "Outros";
 
   const AREAS = {
-    enfermagem: { emoji: "👩‍⚕️", titulo: "Enfermagem", dica: "Urgência, dor, soro ou falar com a equipe" },
-    hotelaria: { emoji: "🛎️", titulo: "Hotelaria", dica: "Quarto, alimentação, enxoval, manutenção e limpeza" },
+    enfermagem: { tom: "primaria", emoji: "👩‍⚕️", titulo: "Enfermagem", dica: "Urgência, dor, soro ou falar com a equipe" },
+    hotelaria: { tom: "hotelaria", emoji: "🛎️", titulo: "Hotelaria", dica: "Quarto, alimentação, enxoval, manutenção e limpeza" },
   };
 
   const EMOJI_CATEGORIA = {
-    "Urgência": { emoji: "🚨", dica: "Preciso de ajuda agora" },
-    "Dor": { emoji: "😣", dica: "Estou sentindo dor" },
-    "Soro": { emoji: "💧", dica: "Problema com o soro ou acesso" },
-    "Falar com Enfermagem": { emoji: "💬", dica: "Dúvidas e orientações" },
+    "Urgência": { tom: "critica", emoji: "🚨", dica: "Preciso de ajuda agora" },
+    "Dor": { tom: "critica", emoji: "😣", dica: "Estou sentindo dor" },
+    "Soro": { tom: "media", emoji: "💧", dica: "Problema com o soro ou acesso" },
+    "Falar com Enfermagem": { tom: "baixa", emoji: "💬", dica: "Dúvidas e orientações" },
   };
 
+  // `tom` = cor do cartão, a mesma do design anterior: representa o estado
+  // do paciente (vermelho = crítico, laranja/amarelo = intermediário,
+  // verde = tranquilo, cinza = neutro, roxo = Hotelaria). Segue as faixas do
+  // motor de prioridade (enfermagem/priority.py::_tier).
   // Emoji + dica curta de cada subopção. A chave é o texto exato da opção em
   // enfermagem/constants.py (o que é gravado no chamado).
   const OPCOES_VISUAIS = {
     "Urgência": {
-      "Não consigo respirar bem": { emoji: "😮‍💨", dica: "Dificuldade para respirar" },
-      "Sangramento intenso": { emoji: "🩸", dica: "Sangramento visível" },
-      "Queda ou acidente no quarto": { emoji: "🤕", dica: "Você caiu ou se machucou" },
-      "Confusão mental ou desmaio": { emoji: "😵", dica: "Perda de consciência ou confusão" },
-      "Dor súbita e muito intensa": { emoji: "⚡", dica: "Dor forte que começou de repente" },
-      "Outra emergência": { emoji: "🚨", dica: "Qualquer outra situação grave" },
+      "Não consigo respirar bem": { tom: "critica", emoji: "😰", dica: "Dificuldade para respirar" },
+      "Sangramento intenso": { tom: "critica", emoji: "🩸", dica: "Sangramento visível" },
+      "Queda ou acidente no quarto": { tom: "critica", emoji: "🤕", dica: "Você caiu ou se machucou" },
+      "Confusão mental ou desmaio": { tom: "critica", emoji: "😵", dica: "Perda de consciência ou confusão" },
+      "Dor súbita e muito intensa": { tom: "critica", emoji: "😖", dica: "Dor forte que começou de repente" },
+      "Outra emergência": { tom: "critica", emoji: "🚨", dica: "Qualquer outra situação grave" },
     },
     "Dor": {
-      "Dor no peito": { emoji: "🫀", dica: "Aperto no peito ou falta de ar" },
-      "Dor muito forte": { emoji: "😖", dica: "Difícil de aguentar" },
-      "Dor moderada": { emoji: "😣", dica: "Incomoda, mas dá pra aguentar" },
-      "Dor leve": { emoji: "🙂", dica: "Pequena, quase não atrapalha" },
+      "Dor no peito": { tom: "critica", emoji: "🥵", dica: "Aperto no peito ou falta de ar" },
+      "Dor muito forte": { tom: "laranja", emoji: "😖", dica: "Difícil de aguentar" },
+      "Dor moderada": { tom: "amarelo", emoji: "😣", dica: "Incomoda, mas dá pra aguentar" },
+      "Dor leve": { tom: "verde", emoji: "🙂", dica: "Pequena, quase não atrapalha" },
     },
     "Soro": {
-      "Está retornando sangue": { emoji: "🩸", dica: "Sangue voltando pelo equipo" },
-      "Problema no acesso": { emoji: "🩹", dica: "Acesso solto, dolorido ou vazando" },
-      "Acabou": { emoji: "💧", dica: "O soro do frasco já terminou" },
-      "Está perto do fim": { emoji: "⏳", dica: "Ainda dá tempo, mas já avise a equipe" },
-      "Outro problema": { emoji: "❓", dica: "Qualquer outra dificuldade com o soro" },
+      "Está retornando sangue": { tom: "vermelho", emoji: "🩸", dica: "Sangue voltando pelo equipo" },
+      "Problema no acesso": { tom: "laranja", emoji: "⚠️", dica: "Acesso solto, dolorido ou vazando" },
+      "Acabou": { tom: "verde", emoji: "💧", dica: "O soro do frasco já terminou" },
+      "Está perto do fim": { tom: "verde", emoji: "⏳", dica: "Ainda dá tempo, mas já avise a equipe" },
+      "Outro problema": { tom: "media", emoji: "❓", dica: "Qualquer outra dificuldade com o soro" },
     },
     "Falar com Enfermagem": {
-      "Dúvida sobre medicação": { emoji: "💊", dica: "Perguntas sobre remédios" },
-      "Dúvida sobre procedimento ou alta": { emoji: "📋", dica: "Exames, alta ou rotina" },
-      "Preciso de orientação": { emoji: "🧭", dica: "Qualquer orientação da equipe" },
-      "Assunto geral": { emoji: "💬", dica: "Outro assunto não urgente" },
+      "Dúvida sobre medicação": { tom: "baixa", emoji: "💊", dica: "Perguntas sobre remédios" },
+      "Dúvida sobre procedimento ou alta": { tom: "baixa", emoji: "📋", dica: "Exames, alta ou rotina" },
+      "Preciso de orientação": { tom: "baixa", emoji: "🧭", dica: "Qualquer orientação da equipe" },
+      "Assunto geral": { tom: "baixa", emoji: "💬", dica: "Outro assunto não urgente" },
     },
     [CATEGORIA_HOTELARIA]: {
-      "Acomodação (cama, travesseiro, TV, ar-condicionado)": { emoji: "🛏️", titulo: "Acomodação", dica: "Cama, travesseiro, TV ou ar-condicionado" },
-      "Alimentação": { emoji: "🍽️", dica: "Refeição, lanche ou dieta especial" },
-      "Roupa de cama / Enxoval": { emoji: "🧺", dica: "Lençol, cobertor ou toalhas" },
-      "Manutenção do quarto": { emoji: "🔧", dica: "Chuveiro, luz, parte elétrica ou hidráulica" },
-      "Limpeza do quarto ou banheiro": { emoji: "🧹", dica: "Limpeza ou higienização" },
+      "Acomodação (cama, travesseiro, TV, ar-condicionado)": { tom: "hotelaria", emoji: "🛏️", titulo: "Acomodação", dica: "Cama, travesseiro, TV ou ar-condicionado" },
+      "Alimentação": { tom: "hotelaria", emoji: "🍽️", dica: "Refeição, lanche ou dieta especial" },
+      "Roupa de cama / Enxoval": { tom: "hotelaria", emoji: "🧺", dica: "Lençol, cobertor ou toalhas" },
+      "Manutenção do quarto": { tom: "hotelaria", emoji: "🔧", dica: "Chuveiro, luz, parte elétrica ou hidráulica" },
+      "Limpeza do quarto ou banheiro": { tom: "hotelaria", emoji: "🧹", dica: "Limpeza ou higienização" },
     },
   };
 
@@ -129,9 +133,9 @@
   }
 
   // Cartão padrão usado em TODAS as telas de escolha.
-  function cartaoHtml({ emoji, titulo, dica, attrs = "", classe = "", selo = "" }) {
+  function cartaoHtml({ emoji, titulo, dica, tom = "", attrs = "", classe = "", selo = "" }) {
     return `
-      <button type="button" class="cartao-opcao ${classe}" ${attrs}>
+      <button type="button" class="cartao-opcao${tom ? ` tom-${tom}` : ""} ${classe}" ${attrs}>
         <span class="emoji-opcao" aria-hidden="true">${emoji || "•"}</span>
         <span class="texto-opcao">
           <strong>${escapeHtml(titulo)}</strong>
@@ -164,6 +168,7 @@
       const ativo = ativos[chave];
       return cartaoHtml({
         emoji: area.emoji,
+        tom: area.tom,
         titulo: area.titulo,
         dica: ativo ? "Você já tem um chamado aqui. Toque para acompanhar." : area.dica,
         classe: `cartao-area${ativo ? " em-andamento" : ""}`,
@@ -207,7 +212,7 @@
 
     const cartoes = CATEGORIAS_ENFERMAGEM.map((nome) => {
       const v = EMOJI_CATEGORIA[nome] || {};
-      return cartaoHtml({ emoji: v.emoji, titulo: nome, dica: v.dica, attrs: `data-categoria="${escapeHtml(nome)}"` });
+      return cartaoHtml({ emoji: v.emoji, tom: v.tom, titulo: nome, dica: v.dica, attrs: `data-categoria="${escapeHtml(nome)}"` });
     }).join("");
 
     el.tela.innerHTML = `
@@ -239,7 +244,7 @@
     const visuais = OPCOES_VISUAIS[state.categoria] || {};
     const cartoes = dados.opcoes.map((texto) => {
       const v = visuais[texto] || {};
-      return cartaoHtml({ emoji: v.emoji, titulo: v.titulo || texto, dica: v.dica, attrs: `data-opcao="${escapeHtml(texto)}"` });
+      return cartaoHtml({ emoji: v.emoji, tom: v.tom, titulo: v.titulo || texto, dica: v.dica, attrs: `data-opcao="${escapeHtml(texto)}"` });
     }).join("");
 
     const titulo = eHotelaria ? "Hotelaria" : state.categoria;
