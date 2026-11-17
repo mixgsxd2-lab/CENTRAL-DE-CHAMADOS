@@ -18,7 +18,9 @@ services:
   - type: web
     name: hospital-rio-grande
     runtime: python
-    rootDir: hospital_rio_grande
+    # Sem `rootDir`: o app (app.py, requirements.txt) fica na raiz do
+    # repositório desde a remoção da pasta extra. Se o serviço foi criado
+    # pelo painel, o campo "Root Directory" em Settings também deve ficar vazio.
     plan: free
     buildCommand: pip install -r requirements.txt
     # "python -m gunicorn" em vez de "gunicorn" puro: o pip instala o
