@@ -105,16 +105,27 @@ mas que não altera o nível de criticidade do chamado.
 
 ## Encaminhamento "Outros" → Hotelaria
 
-Ao escolher a categoria **"Outros"** na tela de "Como podemos ajudar?", o
-paciente vê as mesmas 5 opções de serviço já existentes na Central de
-Hotelaria (Acomodação, Alimentação, Lavanderia, Manutenção, Limpeza). A
-API da Enfermagem (`enfermagem/api.py`) detecta essa categoria e, em vez
-de criar um chamado de enfermagem, chama diretamente
-`hotelaria.services.criar_chamado_hotelaria()` — o chamado nasce direto
-na tabela e no fluxo da Hotelaria, marcado com `origem="enfermagem"` (a
-Central de Hotelaria exibe um selo "🩺 Encaminhado pela Enfermagem" nesses
-casos). O paciente é então levado para a própria tela de acompanhamento
-da Hotelaria, que já sabe reabrir o chamado ativo automaticamente.
+A primeira tela do paciente (depois de escanear o QR Code) tem só duas
+opções: **Enfermagem** (👩‍⚕️) e **Hotelaria** (🛎️). "Outros" não aparece
+mais como categoria para o paciente; ela continua existindo no backend
+(`enfermagem/constants.py`) como a ponte para a Hotelaria. Ao tocar em
+**Hotelaria**, o paciente vê as 5 opções de serviço (Acomodação,
+Alimentação, Enxoval, Manutenção, Limpeza), que são enviadas como
+categoria "Outros". A API da Enfermagem (`enfermagem/api.py`) detecta essa
+categoria e, em vez de criar um chamado de enfermagem, chama diretamente
+`hotelaria.services.criar_chamado_hotelaria()`. O chamado nasce direto na
+tabela e no fluxo da Hotelaria, marcado com `origem="enfermagem"`.
+
+O leito pode ter **um chamado de Enfermagem e um de Hotelaria abertos ao
+mesmo tempo**. Enquanto um deles está em andamento, o cartão daquela área
+fica **cinza** na tela inicial e o toque leva ao acompanhamento, sem abrir
+um novo chamado. O estado vem do servidor
+(`GET /api/enfermagem/paciente/chamados-ativos`), então vale para qualquer
+celular no mesmo leito. A API também recusa um segundo pedido de Hotelaria
+enquanto o anterior não estiver finalizado e devolve o que já está aberto.
+Todas as telas de escolha (Urgência, Dor, Soro, Falar com Enfermagem e
+Hotelaria) usam o mesmo cartão com emoji (`.cartao-opcao` em
+`static/css/enfermagem.css`).
 
 ## Conformidade com LGPD
 
@@ -570,8 +581,8 @@ e filtros com dados reais, e ausência de qualquer stack trace exposta.
   `static/js/hotelaria/acompanhar.js`), com o mesmo visual do acompanhamento
   da Enfermagem. **Sair sem avaliar** (e "Voltar ao início" depois de avaliar)
   volta para a área do paciente da Enfermagem, pronta para um novo chamado.
-- A área do paciente da Enfermagem retoma sozinha um pedido de Hotelaria em
-  aberto (ou finalizado e ainda sem avaliação) neste dispositivo.
+- A tela inicial do paciente mostra Enfermagem / Hotelaria e deixa cinza
+  (com link para o acompanhamento) a área que já tem um chamado em andamento.
 
 ## Alterações — acesso do paciente pelo QR Code válido até a meia-noite
 

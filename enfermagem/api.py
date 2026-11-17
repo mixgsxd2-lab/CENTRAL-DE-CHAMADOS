@@ -37,6 +37,7 @@ from enfermagem.models import ChamadoEnfermagem
 from enfermagem.serializers import chamado_to_dict
 from enfermagem.priority import calcular_prioridade, excedeu_sla, _tier, TEMPO_MINIMO_ATENDIMENTO_SEG
 
+from hotelaria.models import STATUS_FINALIZADO as HOTELARIA_STATUS_FINALIZADO
 from hotelaria.services import criar_chamado_hotelaria
 
 api_bp = Blueprint("enfermagem_api", __name__, url_prefix="/api/enfermagem")
@@ -191,6 +192,36 @@ def _chamado_ativo_no_leito(andar, leito):
     return _row_para_chamado(row)
 
 
+def _chamado_hotelaria_ativo_no_leito(andar, leito):
+    """Pedido de Hotelaria ainda não finalizado deste leito — mesma regra
+    "um chamado por vez" da Enfermagem, mas contada separadamente: o
+    paciente pode ter UM chamado de Enfermagem e UM de Hotelaria abertos ao
+    mesmo tempo. `andar IS NULL` cobre chamados antigos sem andar gravado."""
+    return get_db().execute(
+        """SELECT id, status FROM hotelaria_chamados
+           WHERE leito = ? AND (andar = ? OR andar IS NULL) AND status != ?
+           ORDER BY criado_em DESC LIMIT 1""",
+        (leito, andar, HOTELARIA_STATUS_FINALIZADO),
+    ).fetchone()
+
+
+@api_bp.route("/paciente/chamados-ativos", methods=["GET"])
+@acesso_paciente_requerido
+def chamados_ativos_paciente():
+    """Tela inicial do paciente (Enfermagem / Hotelaria): diz se o leito
+    liberado pelo QR Code já tem um chamado em andamento em cada área — o
+    cartão daquela área fica cinza e passa a levar ao acompanhamento."""
+    andar, leito = g.acesso_paciente["andar"], g.acesso_paciente["leito"]
+    enf = _chamado_ativo_no_leito(andar, leito)
+    hot = _chamado_hotelaria_ativo_no_leito(andar, leito)
+    resposta = jsonify({
+        "enfermagem": {"id": enf.id, "status": enf.status} if enf else None,
+        "hotelaria": {"id": hot["id"], "status": hot["status"]} if hot else None,
+    })
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
+
+
 @api_bp.route("/chamados", methods=["POST"])
 @acesso_paciente_requerido
 def criar_chamado():
@@ -226,6 +257,18 @@ def criar_chamado():
         # O andar/leito e a origem ("enfermagem") já vão como campos próprios
         # para `criar_chamado_hotelaria` — não precisam ser repetidos dentro
         # do texto da descrição, que fica só com a solicitação em si.
+        # Já existe um pedido de Hotelaria em andamento neste leito: não abre
+        # um segundo — devolve o que já está aberto (o cartão Hotelaria fica
+        # cinza na tela inicial enquanto isso).
+        ativo_hotelaria = _chamado_hotelaria_ativo_no_leito(andar, leito)
+        if ativo_hotelaria is not None:
+            return jsonify({
+                "encaminhado_hotelaria": True,
+                "duplicado": True,
+                "hotelaria_chamado_id": ativo_hotelaria["id"],
+                "leito": leito,
+            }), 200
+
         descricao = subcategoria
         if detalhe:
             descricao += f" — {detalhe}"

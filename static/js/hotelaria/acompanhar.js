@@ -90,6 +90,7 @@
       </div>
 
       <div id="areaAvaliacao"></div>
+      ${chamado.status !== "finalizado" ? `<a class="botao secundario largo" href="/enfermagem/" style="margin-top:14px;">Voltar ao início</a>` : ""}
     `;
 
     renderAvaliacao();
