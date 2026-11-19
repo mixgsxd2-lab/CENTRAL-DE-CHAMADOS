@@ -27,7 +27,7 @@ from timeutils import (
 from andares import ANDARES, leito_valido
 from ratelimit import permitido as rate_limit_permitido
 from hotelaria.models import (
-    SERVICOS, META_ESPERA_MIN,
+    SERVICOS, META_ESPERA_MIN, ESPERA_FINALIZACAO_SEGUNDOS,
     STATUS_PENDENTE, STATUS_ANDAMENTO, STATUS_FINALIZADO,
     CONFIRMACAO_PENDENTE, CONFIRMACAO_RESOLVIDO, CONFIRMACAO_NAO_RESOLVIDO,
     CONFIRMACAO_EXPIRADA, CONFIRMACAO_NA,
@@ -37,6 +37,39 @@ from hotelaria.services import criar_chamado_hotelaria
 
 hotelaria_pages = Blueprint("hotelaria_pages", __name__, url_prefix="/hotelaria")
 hotelaria_api = Blueprint("hotelaria_api", __name__, url_prefix="/hotelaria/api")
+
+
+def efetivar_finalizacoes_agendadas(conn):
+    """Finaliza de fato os chamados cuja espera de finalização (ver
+    ESPERA_FINALIZACAO_SEGUNDOS) já terminou. Chamado antes de cada
+    requisição da API da Hotelaria e pela tarefa de segundo plano, para que
+    o chamado saia da Central na hora certa mesmo sem ninguém com a tela
+    aberta."""
+    agora_dt = agora()
+    linhas = conn.execute(
+        "SELECT id, finalizacao_agendada_em FROM hotelaria_chamados "
+        "WHERE status != ? AND finalizacao_agendada_em IS NOT NULL AND finalizacao_agendada_em <= ?",
+        (STATUS_FINALIZADO, para_texto(agora_dt)),
+    ).fetchall()
+    if not linhas:
+        return
+    for r in linhas:
+        momento = parse_dt(r["finalizacao_agendada_em"]) or agora_dt
+        conn.execute(
+            "UPDATE hotelaria_chamados SET status = ?, finalizado_em = ?, confirmacao_resolucao = ?, "
+            "prazo_confirmacao = ?, finalizacao_agendada_em = NULL WHERE id = ? AND status != ?",
+            (
+                STATUS_FINALIZADO, para_texto(momento), CONFIRMACAO_PENDENTE,
+                para_texto(momento + timedelta(minutes=CONFIRMACAO_MINUTOS)),
+                r["id"], STATUS_FINALIZADO,
+            ),
+        )
+    conn.commit()
+
+
+@hotelaria_api.before_request
+def _antes_da_api():
+    efetivar_finalizacoes_agendadas(get_db())
 
 CONFIRMACAO_MINUTOS = 30
 
@@ -458,21 +491,42 @@ def api_alterar_status(chamado_id):
         return jsonify({"erro": "Status inválido."}), 400
 
     db = get_db()
-    campos = ["status = ?"]
+    if novo_status == STATUS_FINALIZADO:
+        # Não finaliza na hora: agenda a finalização para daqui a
+        # ESPERA_FINALIZACAO_SEGUNDOS (2 min). Até lá o chamado segue "em
+        # andamento" e a finalização pode ser cancelada.
+        if row["status"] != STATUS_FINALIZADO and not row["finalizacao_agendada_em"]:
+            iniciado = [] if row["iniciado_em"] else ["iniciado_em = ?"]
+            valores = [STATUS_ANDAMENTO] + ([para_texto(agora())] if iniciado else [])
+            valores.append(para_texto(agora() + timedelta(seconds=ESPERA_FINALIZACAO_SEGUNDOS)))
+            valores.append(chamado_id)
+            db.execute(
+                f"UPDATE hotelaria_chamados SET {', '.join(['status = ?'] + iniciado + ['finalizacao_agendada_em = ?'])} WHERE id = ?",
+                valores,
+            )
+            db.commit()
+        return jsonify(_chamado_completo_dict(chamado_id))
+
+    campos = ["status = ?", "finalizacao_agendada_em = NULL"]
     valores = [novo_status]
     if novo_status == STATUS_ANDAMENTO and not row["iniciado_em"]:
         campos.append("iniciado_em = ?")
         valores.append(para_texto(agora()))
-    if novo_status == STATUS_FINALIZADO:
-        campos.append("finalizado_em = ?")
-        valores.append(para_texto(agora()))
-        campos.append("confirmacao_resolucao = ?")
-        valores.append(CONFIRMACAO_PENDENTE)
-        campos.append("prazo_confirmacao = ?")
-        valores.append(para_texto(agora() + timedelta(minutes=CONFIRMACAO_MINUTOS)))
     valores.append(chamado_id)
 
     db.execute(f"UPDATE hotelaria_chamados SET {', '.join(campos)} WHERE id = ?", valores)
+    db.commit()
+    return jsonify(_chamado_completo_dict(chamado_id))
+
+
+@hotelaria_api.route("/central/chamados/<int:chamado_id>/cancelar_finalizacao", methods=["POST"])
+@login_requerido
+def api_cancelar_finalizacao(chamado_id):
+    row = _buscar_chamado_ou_404(chamado_id)
+    if row["status"] == STATUS_FINALIZADO:
+        return jsonify({"erro": "Este chamado já foi finalizado."}), 409
+    db = get_db()
+    db.execute("UPDATE hotelaria_chamados SET finalizacao_agendada_em = NULL WHERE id = ?", (chamado_id,))
     db.commit()
     return jsonify(_chamado_completo_dict(chamado_id))
 
@@ -632,13 +686,15 @@ def api_dashboard_resumo():
 
 
 # ---------------------------------------------------------------------------
-# Tarefa de segundo plano: expira confirmações após 30 minutos
+# Tarefa de segundo plano: efetiva finalizações agendadas (2 min) e expira
+# confirmações após 30 minutos
 # ---------------------------------------------------------------------------
 def _verificar_confirmacoes_expiradas(app):
     while True:
-        time.sleep(30)
+        time.sleep(10)
         conn = nova_conexao_standalone(app)
         try:
+            efetivar_finalizacoes_agendadas(conn)
             agora_texto = para_texto(agora())
             linhas = conn.execute(
                 "SELECT id FROM hotelaria_chamados WHERE status = ? AND confirmacao_resolucao = ? "

@@ -135,3 +135,9 @@
 .svg-icone { width: 26px; height: 26px; }
 .svg-icone-pequeno { width: 18px; height: 18px; }
 
+
+/* Espera de 2 minutos antes de finalizar (Central) */
+.aviso-finalizacao {
+  display: block; text-align: center; padding: 10px 12px; border-radius: 10px;
+  background: var(--primaria-clara); font-weight: 600;
+}

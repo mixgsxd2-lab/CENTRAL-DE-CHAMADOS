@@ -50,6 +50,11 @@ SERVICOS = {
 # Hotelaria não tem faixas de prioridade, então a meta é única.
 META_ESPERA_MIN = 30
 
+# Espera entre a equipe clicar em "Finalizar atendimento" e o chamado ser
+# finalizado de fato. Durante esse intervalo o chamado continua "em
+# andamento" e a finalização pode ser cancelada na Central.
+ESPERA_FINALIZACAO_SEGUNDOS = 120
+
 STATUS_PENDENTE = "pendente"
 STATUS_ANDAMENTO = "em_andamento"
 STATUS_FINALIZADO = "finalizado"
@@ -98,6 +103,10 @@ def chamado_to_dict(row, mensagens=None, avaliacao_row=None, nao_lida=None):
     fim_espera = iniciado_em or finalizado_em or agora()
     tempo_espera = duracao_minutos(criado_em, fim_espera) if criado_em else None
 
+    agendada = parse_dt(row["finalizacao_agendada_em"]) if "finalizacao_agendada_em" in row.keys() else None
+    if row["status"] == STATUS_FINALIZADO:
+        agendada = None
+
     dados = {
         "id": row["id"],
         "leito": row["leito"],
@@ -113,6 +122,8 @@ def chamado_to_dict(row, mensagens=None, avaliacao_row=None, nao_lida=None):
         "finalizado_em": formata_data_br(finalizado_em),
         "confirmacao_resolucao": row["confirmacao_resolucao"],
         "prazo_confirmacao": row["prazo_confirmacao"],
+        "finalizacao_agendada": agendada is not None,
+        "segundos_para_finalizar": max(0, int((agendada - agora()).total_seconds())) if agendada else None,
         "tem_avaliacao": avaliacao_row is not None,
         "nao_lida": bool(nao_lida) if nao_lida is not None else False,
         "nao_resolvido": row["status"] != STATUS_FINALIZADO,

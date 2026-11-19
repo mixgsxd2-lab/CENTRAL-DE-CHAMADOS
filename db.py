@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS hotelaria_chamados (
     finalizado_em TEXT,
     confirmacao_resolucao TEXT NOT NULL DEFAULT 'nao_aplicavel',
     prazo_confirmacao TEXT,
-    andar TEXT
+    andar TEXT,
+    finalizacao_agendada_em TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_hotel_status ON hotelaria_chamados (status);
 CREATE INDEX IF NOT EXISTS idx_hotel_leito ON hotelaria_chamados (leito);
@@ -137,7 +138,7 @@ def close_db(_exc=None):
 # perder dados só porque uma coluna nova foi criada em `SCHEMA` acima — o
 # `CREATE TABLE IF NOT EXISTS` não altera uma tabela já existente).
 _MIGRACOES_COLUNAS = {
-    "hotelaria_chamados": [("andar", "TEXT")],
+    "hotelaria_chamados": [("andar", "TEXT"), ("finalizacao_agendada_em", "TEXT")],
 }
 
 
