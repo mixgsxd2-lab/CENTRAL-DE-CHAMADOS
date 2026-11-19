@@ -50,10 +50,10 @@ SERVICOS = {
 # Hotelaria não tem faixas de prioridade, então a meta é única.
 META_ESPERA_MIN = 30
 
-# Espera entre a equipe clicar em "Finalizar atendimento" e o chamado ser
-# finalizado de fato. Durante esse intervalo o chamado continua "em
-# andamento" e a finalização pode ser cancelada na Central.
-ESPERA_FINALIZACAO_SEGUNDOS = 120
+# Tempo mínimo de atendimento (mesma regra da Enfermagem — ver
+# enfermagem/priority.py::TEMPO_MINIMO_ATENDIMENTO_SEG): depois de assumir o
+# chamado, a equipe só pode finalizá-lo após esse intervalo.
+TEMPO_MINIMO_ATENDIMENTO_SEG = 120
 
 STATUS_PENDENTE = "pendente"
 STATUS_ANDAMENTO = "em_andamento"
@@ -88,6 +88,16 @@ def descricao_exibicao(descricao):
     return _RE_PREFIXO_ENCAMINHADO.sub("", descricao, count=1)
 
 
+def segundos_ate_poder_finalizar(row):
+    """Segundos que ainda faltam para cumprir o tempo mínimo de atendimento
+    (0 se já pode finalizar)."""
+    iniciado_em = parse_dt(row["iniciado_em"])
+    if row["status"] != STATUS_ANDAMENTO or not iniciado_em:
+        return 0
+    decorrido = (agora() - iniciado_em).total_seconds()
+    return max(0, int(TEMPO_MINIMO_ATENDIMENTO_SEG - decorrido + 0.999))
+
+
 def chamado_to_dict(row, mensagens=None, avaliacao_row=None, nao_lida=None):
     """`row`: linha de hotelaria_chamados. `mensagens`: lista opcional de
     linhas de hotelaria_mensagens já serializadas (mensagem_to_dict).
@@ -102,10 +112,6 @@ def chamado_to_dict(row, mensagens=None, avaliacao_row=None, nao_lida=None):
     # pendente) — mesma definição da Enfermagem; não inclui o atendimento.
     fim_espera = iniciado_em or finalizado_em or agora()
     tempo_espera = duracao_minutos(criado_em, fim_espera) if criado_em else None
-
-    agendada = parse_dt(row["finalizacao_agendada_em"]) if "finalizacao_agendada_em" in row.keys() else None
-    if row["status"] == STATUS_FINALIZADO:
-        agendada = None
 
     dados = {
         "id": row["id"],
@@ -122,8 +128,7 @@ def chamado_to_dict(row, mensagens=None, avaliacao_row=None, nao_lida=None):
         "finalizado_em": formata_data_br(finalizado_em),
         "confirmacao_resolucao": row["confirmacao_resolucao"],
         "prazo_confirmacao": row["prazo_confirmacao"],
-        "finalizacao_agendada": agendada is not None,
-        "segundos_para_finalizar": max(0, int((agendada - agora()).total_seconds())) if agendada else None,
+        "segundos_ate_finalizar": segundos_ate_poder_finalizar(row),
         "tem_avaliacao": avaliacao_row is not None,
         "nao_lida": bool(nao_lida) if nao_lida is not None else False,
         "nao_resolvido": row["status"] != STATUS_FINALIZADO,

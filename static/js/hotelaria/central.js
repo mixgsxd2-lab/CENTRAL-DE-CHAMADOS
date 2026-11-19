@@ -78,8 +78,7 @@
     const novos = detectorNovosChamados(chamados);
     if (novos.length) HRG.tocarAlertaNovoChamado();
 
-    // A contagem regressiva muda a cada poll; não deve forçar re-render da lista.
-    if (!detectorLista(chamados.map(({ segundos_para_finalizar, ...resto }) => resto))) return;
+    if (!detectorLista(chamados)) return;
     renderLista(chamados);
   }
 
@@ -115,7 +114,6 @@
         <div class="categoria-cartao-admin">${escapeHtml(c.descricao_exibicao || c.descricao)}</div>
         <div class="rodape-cartao-admin">
           <span class="selo-status selo-status-${c.status}">${escapeHtml(rotuloStatus(c.status))}</span>
-          ${c.finalizacao_agendada ? `<span class="selo-tempo selo-tempo-ok">⏳ Finalizando</span>` : ""}
           ${seloTempoEspera(c)}
         </div>
       </button>
@@ -168,7 +166,7 @@
       modalChamado.innerHTML = `<p style="text-align:center; padding:40px;">Não foi possível carregar este chamado.</p>`;
       return;
     }
-    ultimoSnapshotModal = snapshotModal(c);
+    ultimoSnapshotModal = `${c.status}|${c.confirmacao_resolucao}|${c.tem_avaliacao}|${c.acima_do_tempo_esperado}`;
 
     const confirmacaoTexto = {
       pendente: "Aguardando confirmação do paciente",
@@ -182,11 +180,9 @@
     if (c.status === "pendente") {
       acoes.push(`<button class="botao" id="botaoAssumir">Assumir chamado</button>`);
     }
-    if (c.status === "em_andamento" && c.finalizacao_agendada) {
-      acoes.push(`<span class="aviso-finalizacao" id="avisoFinalizacao">⏳ Finalizando em <b id="contagemFinalizacao">${formatarContagem(c.segundos_para_finalizar)}</b></span>`);
-      acoes.push(`<button class="botao secundario" id="botaoCancelarFinalizacao">Cancelar finalização</button>`);
-    } else if (c.status === "em_andamento") {
+    if (c.status === "em_andamento") {
       acoes.push(`<button class="botao sucesso" id="botaoFinalizar">Finalizar atendimento</button>`);
+      acoes.push(`<p class="texto-suave" id="avisoTempoMinimo" style="margin:6px 0 0;font-size:.85rem;" hidden></p>`);
     }
 
     modalChamado.innerHTML = `
@@ -217,67 +213,37 @@
     const btnAssumir = document.getElementById("botaoAssumir");
     if (btnAssumir) btnAssumir.addEventListener("click", () => HRG.comBotaoTravado(btnAssumir, () => alterarStatus(c.id, "em_andamento", true)));
     const btnFinalizar = document.getElementById("botaoFinalizar");
-    if (btnFinalizar) btnFinalizar.addEventListener("click", () => HRG.comBotaoTravado(btnFinalizar, () => alterarStatus(c.id, "finalizado")));
-    const btnCancelar = document.getElementById("botaoCancelarFinalizacao");
-    if (btnCancelar) btnCancelar.addEventListener("click", () => HRG.comBotaoTravado(btnCancelar, () => cancelarFinalizacao(c.id)));
-    iniciarContagemFinalizacao(c);
-  }
-
-  function snapshotModal(c) {
-    return `${c.status}|${c.confirmacao_resolucao}|${c.tem_avaliacao}|${c.acima_do_tempo_esperado}|${c.finalizacao_agendada}`;
-  }
-
-  // ---------------------------------------------------------------------
-  // Espera de 2 minutos antes da finalização (ver
-  // hotelaria/models.py::ESPERA_FINALIZACAO_SEGUNDOS): contagem regressiva
-  // no detalhe do chamado, com opção de cancelar.
-  // ---------------------------------------------------------------------
-  let temporizadorContagem = null;
-
-  function formatarContagem(segundos) {
-    const s = Math.max(0, segundos || 0);
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  }
-
-  function pararContagemFinalizacao() {
-    if (temporizadorContagem) { clearInterval(temporizadorContagem); temporizadorContagem = null; }
-  }
-
-  function iniciarContagemFinalizacao(c) {
-    pararContagemFinalizacao();
-    if (!c.finalizacao_agendada) return;
-    const fim = Date.now() + (c.segundos_para_finalizar || 0) * 1000;
-    temporizadorContagem = setInterval(async () => {
-      const restante = Math.ceil((fim - Date.now()) / 1000);
-      const el = document.getElementById("contagemFinalizacao");
-      if (el) el.textContent = formatarContagem(restante);
-      if (restante <= 0) {
-        pararContagemFinalizacao();
-        // Dá um respiro para o servidor efetivar e confere o status.
-        setTimeout(async () => {
-          if (chamadoAbertoId !== c.id) return;
-          try {
-            const { dados } = await HRG.fetchJSON(`/hotelaria/api/chamados/${c.id}`);
-            if (dados.status === "finalizado") {
-              fecharModal();
-              HRG.toast("Chamado finalizado.", "sucesso");
-              await Promise.all([carregarStats(), carregarChamados()]);
-            }
-          } catch (e) { /* o polling do modal tenta de novo */ }
-        }, 1500);
-      }
-    }, 1000);
-  }
-
-  async function cancelarFinalizacao(id) {
-    try {
-      await HRG.fetchJSON(`/hotelaria/api/central/chamados/${id}/cancelar_finalizacao`, { method: "POST" });
-      HRG.toast("Finalização cancelada.", "info");
-      await renderModal();
-      await carregarChamados();
-    } catch (err) {
-      HRG.toast(err.message, "erro");
+    if (btnFinalizar) {
+      btnFinalizar.addEventListener("click", () => HRG.comBotaoTravado(btnFinalizar, () => alterarStatus(c.id, "finalizado")));
+      iniciarContagemFinalizar(btnFinalizar, c.segundos_ate_finalizar || 0);
     }
+  }
+
+  // Tempo mínimo de atendimento (2 min): o botão "Finalizar" fica bloqueado
+  // com contagem regressiva — mesmo padrão da Central de Enfermagem. O
+  // servidor é quem decide (devolve 409 se tentarem antes), aqui é só a
+  // indicação visual.
+  let timerFinalizar = null;
+  function iniciarContagemFinalizar(botao, restante) {
+    clearInterval(timerFinalizar);
+    const aviso = document.getElementById("avisoTempoMinimo");
+    const fim = Date.now() + restante * 1000;
+    const atualizar = () => {
+      const seg = Math.ceil((fim - Date.now()) / 1000);
+      if (!document.body.contains(botao)) { clearInterval(timerFinalizar); return; }
+      if (seg > 0) {
+        botao.disabled = true;
+        botao.textContent = `Finalizar atendimento (${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")})`;
+        if (aviso) { aviso.hidden = false; aviso.textContent = "Tempo mínimo de atendimento: 2 minutos após assumir o chamado."; }
+      } else {
+        clearInterval(timerFinalizar);
+        botao.disabled = false;
+        botao.textContent = "Finalizar atendimento";
+        if (aviso) aviso.hidden = true;
+      }
+    };
+    atualizar();
+    if (restante > 0) timerFinalizar = setInterval(atualizar, 1000);
   }
 
   function rotuloStatus(status) {
@@ -285,7 +251,7 @@
   }
 
   function fecharModal() {
-    pararContagemFinalizacao();
+    clearInterval(timerFinalizar);
     fundoModal.classList.remove("aberto");
     chamadoAbertoId = null;
     pararPollingModal();
@@ -298,11 +264,13 @@
     try {
       await HRG.fetchJSON(endpoint, opcoes);
       if (novoStatus === "finalizado") {
-        // A finalização só acontece após 2 minutos — até lá o detalhe
-        // mostra a contagem regressiva e o botão de cancelar.
-        HRG.toast("O chamado será finalizado em 2 minutos.", "info");
+        // Finalizado = sai da Central (vai para o Histórico): fecha o
+        // detalhe automaticamente.
+        fecharModal();
+        HRG.toast("Chamado finalizado.", "sucesso");
+      } else {
+        await renderModal();
       }
-      await renderModal();
       await Promise.all([carregarStats(), carregarChamados()]);
     } catch (err) {
       HRG.toast(err.message, "erro");
@@ -329,7 +297,7 @@
         fecharModal();
         return;
       }
-      const snapshot = snapshotModal(c);
+      const snapshot = `${c.status}|${c.confirmacao_resolucao}|${c.tem_avaliacao}|${c.acima_do_tempo_esperado}`;
       if (snapshot !== ultimoSnapshotModal) {
         await renderModal();
       }
