@@ -105,6 +105,18 @@ def _liberacao_vale(desde, expirado_leito, expirado_todos, momento):
     return True
 
 
+def inicio_janela_avaliacao(andar, leito):
+    """A partir de quando um chamado finalizado sem avaliação conta como
+    "pendente de avaliação" para este leito: o início do dia ou a última
+    revogação de acesso (do leito ou de todos) — o que for mais recente.
+    Assim a pendência de um paciente anterior (alta/troca de leito, quando a
+    equipe expira o acesso) não bloqueia o próximo."""
+    db = get_db()
+    linha = _linha_leito(db, andar, leito)
+    candidatos = [inicio_do_dia(), _expirado_todos_em(db), _dt(linha["expirado_em"]) if linha else None]
+    return max(c for c in candidatos if c is not None)
+
+
 def expirar_leito(andar, leito):
     """Retorna False se o andar/leito não existir."""
     if not leito_valido(andar, leito):

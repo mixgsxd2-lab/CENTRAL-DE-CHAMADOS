@@ -23,7 +23,8 @@ from timeutils import (
 )
 
 from enfermagem.acesso import (
-    acesso_atual, expirar_leito, expirar_todos, obter_token, proxima_meia_noite, status_leitos,
+    acesso_atual, expirar_leito, expirar_todos, inicio_janela_avaliacao, obter_token, proxima_meia_noite,
+    status_leitos,
 )
 from enfermagem.auth import acesso_paciente_requerido, login_requerido
 from enfermagem.constants import (
@@ -205,6 +206,41 @@ def _chamado_hotelaria_ativo_no_leito(andar, leito):
     ).fetchone()
 
 
+def _avaliacoes_pendentes_no_leito(andar, leito):
+    """Último chamado FINALIZADO e ainda NÃO avaliado de cada área deste
+    leito (dentro da janela de `inicio_janela_avaliacao`). Antes de abrir um
+    novo chamado na mesma área, o paciente precisa avaliar esse anterior."""
+    db = get_db()
+    desde = inicio_janela_avaliacao(andar, leito).isoformat(sep=" ", timespec="seconds")
+    enf = db.execute(
+        """SELECT id FROM enfermagem_chamados
+           WHERE andar = ? AND leito = ? AND status = ? AND avaliacao IS NULL AND finalizado_em >= ?
+           ORDER BY finalizado_em DESC LIMIT 1""",
+        (andar, leito, STATUS_FINALIZADO, desde),
+    ).fetchone()
+    hot = db.execute(
+        """SELECT c.id FROM hotelaria_chamados c
+           LEFT JOIN hotelaria_avaliacoes a ON a.chamado_id = c.id
+           WHERE c.leito = ? AND (c.andar = ? OR c.andar IS NULL) AND c.status = ?
+             AND a.id IS NULL AND c.finalizado_em >= ?
+           ORDER BY c.finalizado_em DESC LIMIT 1""",
+        (leito, andar, HOTELARIA_STATUS_FINALIZADO, desde),
+    ).fetchone()
+    return {
+        "enfermagem": {"id": enf["id"]} if enf else None,
+        "hotelaria": {"id": hot["id"]} if hot else None,
+    }
+
+
+def _resposta_avaliacao_pendente(area, pendente):
+    return jsonify({
+        "erro": "Avalie seu último atendimento antes de abrir um novo chamado.",
+        "avaliacao_pendente": True,
+        "area": area,
+        "chamado_id": pendente["id"],
+    }), 409
+
+
 @api_bp.route("/paciente/chamados-ativos", methods=["GET"])
 @acesso_paciente_requerido
 def chamados_ativos_paciente():
@@ -217,6 +253,7 @@ def chamados_ativos_paciente():
     resposta = jsonify({
         "enfermagem": {"id": enf.id, "status": enf.status} if enf else None,
         "hotelaria": {"id": hot["id"], "status": hot["status"]} if hot else None,
+        "avaliacao_pendente": _avaliacoes_pendentes_no_leito(andar, leito),
     })
     resposta.headers["Cache-Control"] = "no-store"
     return resposta
@@ -269,6 +306,10 @@ def criar_chamado():
                 "leito": leito,
             }), 200
 
+        pendente = _avaliacoes_pendentes_no_leito(andar, leito)["hotelaria"]
+        if pendente is not None:
+            return _resposta_avaliacao_pendente("hotelaria", pendente)
+
         descricao = subcategoria
         if detalhe:
             descricao += f" — {detalhe}"
@@ -288,6 +329,10 @@ def criar_chamado():
         payload["encaminhado_hotelaria"] = False
         payload["duplicado"] = True
         return jsonify(payload), 200
+
+    pendente = _avaliacoes_pendentes_no_leito(andar, leito)["enfermagem"]
+    if pendente is not None:
+        return _resposta_avaliacao_pendente("enfermagem", pendente)
 
     gravidade = gravidade_da_opcao(categoria, subcategoria)
     texto_agora = para_texto(agora())

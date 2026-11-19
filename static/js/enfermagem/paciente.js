@@ -164,16 +164,28 @@
       }
     }
 
+    const pendentes = ativos.avaliacao_pendente || {};
     const cartoes = Object.entries(AREAS).map(([chave, area]) => {
       const ativo = ativos[chave];
+      // Chamado anterior finalizado e ainda não avaliado: bolinha laranja no
+      // cartão — antes de abrir outro chamado nesta área, o paciente precisa
+      // avaliar o anterior (o servidor também bloqueia, ver enfermagem/api.py).
+      const pendente = !ativo && pendentes[chave];
+      let attrs = `data-area="${chave}"`;
+      if (ativo) attrs += ` data-chamado="${ativo.id}" aria-label="${area.titulo}: chamado em andamento, toque para acompanhar"`;
+      else if (pendente) attrs += ` data-chamado="${pendente.id}" aria-label="${area.titulo}: avalie seu último atendimento antes de abrir um novo chamado"`;
       return cartaoHtml({
         emoji: area.emoji,
         tom: area.tom,
         titulo: area.titulo,
-        dica: ativo ? "Você já tem um chamado aqui. Toque para acompanhar." : area.dica,
-        classe: `cartao-area${ativo ? " em-andamento" : ""}`,
-        attrs: `data-area="${chave}"${ativo ? ` data-chamado="${ativo.id}" aria-label="${area.titulo}: chamado em andamento, toque para acompanhar"` : ""}`,
-        selo: ativo ? `<span class="selo-andamento">⏳ Chamado em andamento</span>` : "",
+        dica: ativo
+          ? "Você já tem um chamado aqui. Toque para acompanhar."
+          : pendente ? "Avalie seu último atendimento para abrir um novo chamado." : area.dica,
+        classe: `cartao-area${ativo ? " em-andamento" : ""}${pendente ? " avaliacao-pendente" : ""}`,
+        attrs,
+        selo: ativo
+          ? `<span class="selo-andamento">⏳ Chamado em andamento</span>`
+          : pendente ? `<span class="selo-avaliar">⭐ Avaliar atendimento</span><span class="ponto-pendente" aria-hidden="true"></span>` : "",
       });
     }).join("");
 
@@ -346,6 +358,13 @@
     } catch (err) {
       if (err.dados && err.dados.acesso_expirado && window.HRGAcessoPaciente) {
         window.HRGAcessoPaciente.mostrarExpirado();
+        return;
+      }
+      if (err.dados && err.dados.avaliacao_pendente && URL_ACOMPANHAR[err.dados.area]) {
+        // O chamado anterior desta área ainda não foi avaliado: leva o
+        // paciente direto para a avaliação dele.
+        HRG.toast(err.message, "info");
+        window.location.href = URL_ACOMPANHAR[err.dados.area](err.dados.chamado_id);
         return;
       }
       HRG.toast(err.message, "erro");

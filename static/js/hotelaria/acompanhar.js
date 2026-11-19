@@ -152,7 +152,7 @@
   async function enviarAvaliacao() {
     if (enviandoAvaliacao) return;
     if (estrelasSelecionadas < 1) {
-      HRG.toast("Selecione de 1 a 5 estrelas, ou apenas ignore — a avaliação é opcional.", "info");
+      HRG.toast("A avaliação é obrigatória: selecione de 1 a 5 estrelas.", "info");
       return;
     }
     enviandoAvaliacao = true;

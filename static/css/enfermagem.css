@@ -212,3 +212,23 @@
   .selecao-qrcode-leito { flex-direction: column; }
 }
 
+
+/* Chamado anterior finalizado e ainda não avaliado: bolinha laranja no
+   cartão da área — o paciente precisa avaliar antes de abrir outro. */
+.cartao-area.avaliacao-pendente { position: relative; }
+.ponto-pendente {
+  position: absolute; top: 10px; right: 12px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #f59e0b; border: 3px solid #fff;
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
+  animation: pulsoPendente 1.6s ease-out infinite;
+}
+@keyframes pulsoPendente {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  100% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .ponto-pendente { animation: none; } }
+.selo-avaliar {
+  margin-top: 6px; padding: 5px 12px; border-radius: 999px;
+  background: #fef3c7; color: #92400e; font-size: 0.82rem; font-weight: 700;
+}
