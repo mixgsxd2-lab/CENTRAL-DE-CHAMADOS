@@ -159,6 +159,17 @@ def dashboard():
     )
 
 
+@pages_bp.route("/dashboard/relatorio")
+@login_requerido
+def dashboard_relatorio():
+    """Relatório do Dashboard pronto para "Salvar como PDF" (botão "PDF" do
+    Dashboard — ver static/js/relatorio_pdf.js)."""
+    return render_template(
+        "relatorio_pdf.html", modulo="enfermagem", titulo="Enfermagem",
+        titulo_grafico_1="Chamados por categoria", titulo_grafico_2="Chamados por prioridade",
+    )
+
+
 @pages_bp.route("/central")
 @login_requerido
 def central():

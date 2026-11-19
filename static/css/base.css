@@ -837,3 +837,66 @@ img, svg { max-width: 100%; }
   .portal-caixa { max-width: 1040px; }
   .cartao-dash .valor-dash { font-size: 2.2rem; }
 }
+
+/* ==========================================================================
+   Relatório em PDF dos Dashboards — botão discreto no canto superior
+   esquerdo + painel De/Até/Setor (static/js/relatorio_pdf.js) e a folha do
+   relatório (templates/relatorio_pdf.html).
+   ========================================================================== */
+.grupo-pdf { position: relative; margin-right: auto; }
+.botao-pdf {
+  min-height: 38px; display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 1.5px solid var(--borda); border-radius: 20px;
+  padding: 7px 14px; font: inherit; font-size: 0.8rem; font-weight: 700; color: var(--texto-suave);
+  cursor: pointer; transition: color .15s, border-color .15s, background .15s;
+}
+.botao-pdf svg { width: 15px; height: 15px; }
+.botao-pdf:hover, .botao-pdf[aria-expanded="true"] { color: var(--primaria-escura); border-color: var(--primaria-suave); background: var(--branco); }
+.botao-pdf:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
+
+.painel-pdf {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 40;
+  width: min(320px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 12px;
+  background: var(--branco); border: 1px solid var(--borda); border-radius: 14px;
+  box-shadow: var(--sombra-media); padding: 16px;
+}
+.painel-pdf[hidden] { display: none; }
+.painel-pdf-titulo { font-size: 0.86rem; font-weight: 800; color: var(--texto); }
+.painel-pdf-datas { display: flex; gap: 10px; }
+.painel-pdf .campo-filtro { min-width: 0; flex: 1 1 0; }
+.painel-pdf-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Folha do relatório */
+.pagina-relatorio { background: var(--fundo); color: var(--texto); font-family: "Manrope", system-ui, sans-serif; margin: 0; }
+.barra-relatorio {
+  position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 24px; background: var(--branco); border-bottom: 1px solid var(--borda); font-size: 0.85rem; color: var(--texto-suave);
+}
+.folha-relatorio { max-width: 1040px; margin: 0 auto; padding: 24px; }
+.cabecalho-relatorio {
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+  padding-bottom: 14px; border-bottom: 2px solid var(--primaria-suave); margin-bottom: 12px;
+}
+.marca-relatorio { display: flex; align-items: center; gap: 12px; }
+.marca-relatorio h1 { margin: 0; font-size: 1.3rem; }
+.marca-relatorio span { color: var(--texto-suave); font-size: 0.85rem; }
+.selo-relatorio { width: 44px; height: 44px; object-fit: contain; }
+.meta-relatorio { font-size: 0.82rem; color: var(--texto-suave); text-align: right; }
+.meta-relatorio b { color: var(--texto); }
+.filtros-relatorio { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.82rem; color: var(--texto-suave); margin-bottom: 16px; }
+.filtros-relatorio b { color: var(--texto); }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  .pagina-relatorio { background: #fff; }
+  .barra-relatorio { display: none; }
+  .folha-relatorio { max-width: none; padding: 0; }
+  .pagina-relatorio * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pagina-relatorio .cartao-dash, .pagina-relatorio .painel-grafico { box-shadow: none; break-inside: avoid; }
+  .pagina-relatorio .grade-graficos { break-inside: avoid; }
+}
+/* Folha do relatório: mesma disposição em tela e no A4 (não empilha). */
+.pagina-relatorio .grade-cartoes-dash { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pagina-relatorio .grade-graficos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pagina-relatorio .cartao-dash { padding: 14px 16px; }
+.pagina-relatorio .valor-dash { font-size: 1.5rem; }

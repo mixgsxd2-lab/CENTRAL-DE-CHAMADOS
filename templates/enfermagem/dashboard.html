@@ -17,6 +17,11 @@
 
   <div class="pagina-admin">
     <div class="barra-filtros barra-filtros-central barra-filtros-dashboard">
+      <div class="grupo-pdf"><button class="botao-pdf" id="botaoPdf" type="button" title="Gerar relatório em PDF" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 12v6"/><path d="m9 15 3 3 3-3"/></svg>
+        PDF
+      </button>
+      </div>
       <div class="seletor-periodo" role="group" aria-label="Período" id="seletorPeriodo">
         <button type="button" data-periodo="hoje">Hoje</button>
         <button type="button" data-periodo="7dias">Últimos 7 dias</button>
@@ -117,4 +122,12 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/dashboard_comum.js') }}"></script>
 <script src="{{ url_for('static', filename='js/enfermagem/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/relatorio_pdf.js') }}"></script>
+<script>
+  HRGRelatorioPDF.ligarBotao({
+    botao: document.getElementById("botaoPdf"),
+    urlRelatorio: "{{ url_for('enfermagem_pages.dashboard_relatorio') }}",
+    campos: [{ chave: "andar", rotulo: "Setor (andar)", opcoes: {{ andares|tojson }}.map((a) => ({ valor: a, rotulo: a.replace(/\s*—\s*LEITOS\s*$/i, "") })) }],
+  });
+</script>
 {% endblock %}

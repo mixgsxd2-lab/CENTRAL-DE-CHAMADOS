@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório — {{ titulo }} — Hospital Rio Grande</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+</head>
+<body class="pagina-relatorio">
+<div class="barra-relatorio">
+  <span>Na janela de impressão, escolha <b>“Salvar como PDF”</b>.</span>
+  <button type="button" class="botao pequeno" id="botaoImprimir">Salvar PDF</button>
+</div>
+
+<main class="folha-relatorio">
+  <header class="cabecalho-relatorio">
+    <div class="marca-relatorio">
+      <img src="{{ url_for('static', filename='img/hotelaria-logo-icon.png') }}" alt="" class="selo-relatorio">
+      <div>
+        <h1>Relatório — {{ titulo }}</h1>
+        <span>Hospital Rio Grande</span>
+      </div>
+    </div>
+    <div class="meta-relatorio">
+      <div><b>Período:</b> <span id="relPeriodo"></span></div>
+      <div><b>Gerado em:</b> <span id="relGeradoEm"></span></div>
+    </div>
+  </header>
+  <div class="filtros-relatorio" id="relFiltros"></div>
+
+  <div id="relConteudo">
+    <div class="grade-cartoes-dash" id="cartoesResumo"></div>
+
+    <div class="grade-graficos">
+      <div class="painel-grafico">
+        <h3>{{ titulo_grafico_1 }}</h3>
+        <div id="grafico1"></div>
+      </div>
+      <div class="painel-grafico">
+        <h3>{{ titulo_grafico_2 }}</h3>
+        <div id="grafico2"></div>
+      </div>
+    </div>
+
+    <div class="grade-graficos" style="margin-top:16px;">
+      <div class="painel-grafico">
+        <div class="topo-painel-grafico">
+          <h3>Chamados por período</h3>
+          <span class="subtitulo-grafico" id="subtituloPeriodo"></span>
+        </div>
+        <div id="graficoPeriodo"></div>
+      </div>
+      <div class="painel-grafico">
+        <div class="topo-painel-grafico">
+          <h3>Chamados por andar</h3>
+          <span class="legenda-mini" id="legendaAndar"></span>
+        </div>
+        <div id="graficoAndar"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_comum.js') }}"></script>
+<script src="{{ url_for('static', filename='js/relatorio_pdf.js') }}"></script>
+<script>
+(function () {
+  "use strict";
+  const D = HRGDashboard, P = D.PALETA, fmt = HRG.formatarMinutos;
+  const SERVICOS = {{ (servicos or {})|tojson }};
+  const tirarLeitos = (v) => v.replace(/\s*—\s*LEITOS\s*$/i, "");
+  const avaliacao = (media) => media != null ? `${Number(media).toFixed(1)} ★` : "—";
+
+  {% if modulo == "enfermagem" %}
+  const FAIXAS = [
+    { chave: "critica", rotulo: "Crítico", cor: P[0], rodape: ["crítico", "críticos"] },
+    { chave: "media", rotulo: "Médio", cor: P[2] },
+    { chave: "baixa", rotulo: "Baixo", cor: P[4] },
+  ];
+  HRGRelatorioPDF.renderRelatorio({
+    urlMetricas: "/api/enfermagem/metricas",
+    filtrosDescritos: [{ chave: "andar", rotulo: "Setor (andar)", formatar: tirarLeitos }],
+    render(d) {
+      D.renderCartoes(document.getElementById("cartoesResumo"), [
+        { rotulo: "Total de chamados", valor: d.total, destaque: true },
+        { rotulo: "Pendentes", valor: d.pendentes },
+        { rotulo: "Em atendimento", valor: d.em_atendimento },
+        { rotulo: "Finalizados", valor: d.finalizados },
+        { rotulo: "Tempo médio de espera", valor: fmt(d.tempo_medio_espera_min) },
+        { rotulo: "Tempo médio de atendimento", valor: fmt(d.tempo_medio_atendimento_min) },
+        { rotulo: `Avaliação média (${d.total_avaliacoes || 0})`, valor: avaliacao(d.avaliacao_media) },
+      ]);
+      D.renderBarras(document.getElementById("grafico1"), Object.entries(d.por_categoria || {}).map(([rotulo, valor]) => ({ rotulo, valor })));
+      D.renderBarras(document.getElementById("grafico2"), FAIXAS.map((fx) => ({ rotulo: fx.rotulo, valor: (d.por_prioridade || {})[fx.chave] || 0, cor: fx.cor })));
+      D.renderPeriodo(document.getElementById("graficoPeriodo"), document.getElementById("subtituloPeriodo"), d.serie_periodo);
+      D.renderEmpilhado(document.getElementById("graficoAndar"), d.por_andar_prioridade, FAIXAS, "critica");
+      document.getElementById("legendaAndar").innerHTML = D.legendaHtml(FAIXAS);
+    },
+  });
+  {% else %}
+  const FAIXAS = [
+    { chave: "pendente", rotulo: "Pendente", cor: P[0], rodape: ["pendente", "pendentes"] },
+    { chave: "em_andamento", rotulo: "Em andamento", cor: P[2] },
+    { chave: "finalizado", rotulo: "Finalizado", cor: P[4] },
+  ];
+  HRGRelatorioPDF.renderRelatorio({
+    urlMetricas: "/hotelaria/api/dashboard/resumo",
+    filtrosDescritos: [
+      { chave: "andar", rotulo: "Setor (andar)", formatar: tirarLeitos },
+      { chave: "servico", rotulo: "Serviço", formatar: (v) => (SERVICOS[v] || {}).nome || v },
+    ],
+    render(d) {
+      D.renderCartoes(document.getElementById("cartoesResumo"), [
+        { rotulo: "Total de chamados", valor: d.total, destaque: true },
+        { rotulo: "Pendentes", valor: d.pendentes },
+        { rotulo: "Em andamento", valor: d.andamento },
+        { rotulo: "Finalizados", valor: d.finalizados },
+        { rotulo: "Tempo médio de espera", valor: fmt(d.tempo_medio_espera_min) },
+        { rotulo: "Tempo médio de atendimento", valor: fmt(d.tempo_medio_atendimento_min) },
+        { rotulo: `Avaliação média (${d.total_avaliacoes || 0})`, valor: avaliacao(d.media_avaliacao) },
+      ]);
+      D.renderBarras(document.getElementById("grafico1"), Object.entries(d.por_servico || {}).map(([rotulo, valor]) => ({ rotulo, valor })));
+      D.renderBarras(document.getElementById("grafico2"), FAIXAS.map((fx) => ({ rotulo: fx.rotulo, valor: (d.por_status || {})[fx.chave] || 0, cor: fx.cor })));
+      D.renderPeriodo(document.getElementById("graficoPeriodo"), document.getElementById("subtituloPeriodo"), d.serie_periodo);
+      D.renderEmpilhado(document.getElementById("graficoAndar"), d.por_andar_status, FAIXAS, "pendente");
+      document.getElementById("legendaAndar").innerHTML = D.legendaHtml(FAIXAS);
+    },
+  });
+  {% endif %}
+})();
+</script>
+</body>
+</html>

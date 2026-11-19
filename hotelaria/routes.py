@@ -159,6 +159,17 @@ def dashboard():
     return render_template("hotelaria/dashboard.html", servicos=SERVICOS, andares=list(ANDARES.keys()))
 
 
+@hotelaria_pages.route("/dashboard/relatorio")
+@login_requerido
+def dashboard_relatorio():
+    """Relatório do Dashboard pronto para "Salvar como PDF" (botão "PDF" do
+    Dashboard — ver static/js/relatorio_pdf.js)."""
+    return render_template(
+        "relatorio_pdf.html", modulo="hotelaria", titulo="Hotelaria", servicos=SERVICOS,
+        titulo_grafico_1="Chamados por serviço", titulo_grafico_2="Chamados por status",
+    )
+
+
 @hotelaria_pages.route("/historico")
 @login_requerido
 def historico():
