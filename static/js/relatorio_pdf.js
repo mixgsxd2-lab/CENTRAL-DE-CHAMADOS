@@ -51,7 +51,24 @@ window.HRGRelatorioPDF = (function () {
     const inicio = painel.querySelector("#pdfDataInicio");
     const fim = painel.querySelector("#pdfDataFim");
 
+    // Datas padrão: "De" = uma semana atrás, "Até" = hoje (data local do
+    // computador, no formato yyyy-mm-dd que o <input type="date"> exige).
+    function isoLocal(data) {
+      const m = String(data.getMonth() + 1).padStart(2, "0");
+      const d = String(data.getDate()).padStart(2, "0");
+      return `${data.getFullYear()}-${m}-${d}`;
+    }
+    function preencherDatasPadrao() {
+      const hoje = new Date();
+      const semanaAtras = new Date(hoje);
+      semanaAtras.setDate(hoje.getDate() - 7);
+      if (!inicio.value) inicio.value = isoLocal(semanaAtras);
+      if (!fim.value) fim.value = isoLocal(hoje);
+    }
+    preencherDatasPadrao();
+
     function abrir(abrirPainel) {
+      if (abrirPainel) preencherDatasPadrao();
       painel.hidden = !abrirPainel;
       botao.setAttribute("aria-expanded", String(abrirPainel));
       if (abrirPainel) inicio.focus();
