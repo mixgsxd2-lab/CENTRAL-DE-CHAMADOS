@@ -201,7 +201,11 @@
       botao.addEventListener("click", () => {
         const area = botao.dataset.area;
         if (botao.dataset.chamado) {
-          window.location.href = URL_ACOMPANHAR[area](botao.dataset.chamado);
+          // Com a bolinha laranja (avaliação pendente), a tela de
+          // acompanhamento abre em modo "avaliação obrigatória" (sem o
+          // botão "Sair sem avaliar").
+          const sufixo = botao.classList.contains("avaliacao-pendente") ? "?avaliar=1" : "";
+          window.location.href = URL_ACOMPANHAR[area](botao.dataset.chamado) + sufixo;
           return;
         }
         state.area = area;
@@ -364,7 +368,7 @@
         // O chamado anterior desta área ainda não foi avaliado: leva o
         // paciente direto para a avaliação dele.
         HRG.toast(err.message, "info");
-        window.location.href = URL_ACOMPANHAR[err.dados.area](err.dados.chamado_id);
+        window.location.href = URL_ACOMPANHAR[err.dados.area](err.dados.chamado_id) + "?avaliar=1";
         return;
       }
       HRG.toast(err.message, "erro");

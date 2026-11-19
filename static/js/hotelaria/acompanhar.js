@@ -11,6 +11,11 @@
   const escapeHtml = HRG.escapeHtml;
   const LS_KEY = "rg_hospital_chamado_ativo";
   const URL_INICIO = "/enfermagem/";
+  // `?avaliar=1`: o paciente chegou pela bolinha laranja (tentando abrir
+  // outro chamado com este ainda sem avaliação) — aqui a avaliação é
+  // obrigatória, então "Sair sem avaliar" não aparece. Na primeira vez
+  // (acompanhando o chamado normalmente) o botão continua disponível.
+  const AVALIACAO_OBRIGATORIA = new URLSearchParams(window.location.search).get("avaliar") === "1";
 
   let chamado = null;
   let estrelasSelecionadas = 0;
@@ -121,7 +126,9 @@
         <div class="estrelas" id="estrelasAvaliacao">${estrelasHtml}</div>
         <textarea id="comentarioAvaliacao" maxlength="300" placeholder="Comentário (opcional)" aria-label="Comentário sobre o atendimento"></textarea>
         <button class="botao largo" id="botaoEnviarAvaliacao" style="margin-top:12px;">Enviar avaliação</button>
-        <button class="botao secundario largo" id="botaoSairSemAvaliar" style="margin-top:8px;">Sair sem avaliar</button>
+        ${AVALIACAO_OBRIGATORIA
+          ? `<p class="texto-suave" style="margin:10px 0 0;font-size:.85rem;text-align:center;">Avalie este atendimento para poder abrir um novo chamado.</p>`
+          : `<button class="botao secundario largo" id="botaoSairSemAvaliar" style="margin-top:8px;">Sair sem avaliar</button>`}
       </div>
     `;
 
@@ -134,7 +141,8 @@
     });
 
     document.getElementById("botaoEnviarAvaliacao").addEventListener("click", enviarAvaliacao);
-    document.getElementById("botaoSairSemAvaliar").addEventListener("click", sairSemAvaliar);
+    const botaoSair = document.getElementById("botaoSairSemAvaliar");
+    if (botaoSair) botaoSair.addEventListener("click", sairSemAvaliar);
   }
 
   function liberarDispositivo() {
